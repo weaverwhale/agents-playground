@@ -61,9 +61,12 @@ function App(): React.ReactElement {
     const userMessage: Message = {
       role: 'user',
       content: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
     };
-    setMessages(prevMessages => [...prevMessages, userMessage]);
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInput('');
     setIsLoading(true);
 
@@ -76,8 +79,8 @@ function App(): React.ReactElement {
         },
         body: JSON.stringify({
           user_id: userId,
-          message: userMessage.content
-        })
+          message: userMessage.content,
+        }),
       });
 
       if (!response.body) {
@@ -86,15 +89,18 @@ function App(): React.ReactElement {
 
       // Add a placeholder message for the assistant's response
       const placeholderId = uuidv4();
-      setMessages(prevMessages => [
-        ...prevMessages, 
+      setMessages((prevMessages) => [
+        ...prevMessages,
         {
           id: placeholderId,
           role: 'assistant',
           content: 'Thinking...',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isPartial: true
-        }
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          isPartial: true,
+        },
       ]);
 
       const reader = response.body.getReader();
@@ -105,19 +111,19 @@ function App(): React.ReactElement {
         try {
           while (true) {
             const { done, value } = await reader.read();
-            
+
             if (done) {
               break;
             }
-            
+
             const chunk = decoder.decode(value, { stream: true });
             responseText += chunk;
-            
+
             // Update the placeholder message
-            setMessages(prevMessages => 
-              prevMessages.map(msg => 
-                msg.id === placeholderId 
-                  ? { ...msg, content: responseText, isPartial: false } 
+            setMessages((prevMessages) =>
+              prevMessages.map((msg) =>
+                msg.id === placeholderId
+                  ? { ...msg, content: responseText, isPartial: false }
                   : msg
               )
             );
@@ -132,13 +138,17 @@ function App(): React.ReactElement {
       processStream();
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prevMessages => [
+      setMessages((prevMessages) => [
         ...prevMessages,
         {
           role: 'assistant',
-          content: 'Sorry, there was an error processing your request. Please try again.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
+          content:
+            'Sorry, there was an error processing your request. Please try again.',
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        },
       ]);
       setIsLoading(false);
     }
@@ -159,7 +169,7 @@ function App(): React.ReactElement {
         <header className="bg-blue-600 text-white p-4 flex justify-between items-center">
           <h1 className="text-xl font-bold">Chat Assistant</h1>
           <div>
-            <button 
+            <button
               onClick={clearChatHistory}
               className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
             >
@@ -167,7 +177,7 @@ function App(): React.ReactElement {
             </button>
           </div>
         </header>
-        
+
         <div className="flex flex-1 overflow-hidden">
           <div className="chat-messages flex flex-col flex-1">
             {messages.map((message, index) => (
@@ -176,7 +186,7 @@ function App(): React.ReactElement {
             <div ref={messagesEndRef} />
           </div>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="chat-input-container">
           <div className="flex">
             <input
@@ -187,8 +197,8 @@ function App(): React.ReactElement {
               className="chat-input flex-1 mr-2"
               disabled={isLoading}
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
               disabled={isLoading}
             >
@@ -201,4 +211,4 @@ function App(): React.ReactElement {
   );
 }
 
-export default App; 
+export default App;
