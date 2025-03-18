@@ -28,30 +28,6 @@ from tw_tools import (
 
 from agents import Runner, Agent
 
-# Define output models for the agent
-class ProductRecommendation(BaseModel):
-    name: str
-    price: float
-    description: str
-    rating: Optional[float] = None
-    category: str
-    features: List[str] = []
-    recommendation_reason: str
-
-class OrderStatus(BaseModel):
-    order_id: str
-    status: str
-    estimated_delivery: Optional[str] = None
-    items: List[Dict[str, Any]] = []
-    tracking_number: Optional[str] = None
-    shipping_carrier: Optional[str] = None
-
-class PriceComparison(BaseModel):
-    product_name: str
-    retailers: List[Dict[str, Any]] = []
-    best_deal: Dict[str, Any]
-    comparison_date: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"))
-
 # Get model from environment or use default
 model = os.getenv('MODEL_CHOICE', 'gpt-4o-mini')
 
@@ -120,6 +96,10 @@ class ChatResponse(BaseModel):
 
 # Helper function to format agent responses
 def format_agent_response(output):
+    # Handle None case
+    if output is None:
+        return "I don't have a specific response for that query."
+        
     # Check if output is a Pydantic model and convert to dict
     if hasattr(output, "model_dump"):
         output = output.model_dump()
