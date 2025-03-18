@@ -60,8 +60,7 @@ moby_agent = Agent(
         text_to_sql,
         knowledge_base,
         search_web
-    ],
-    output_type=Optional[Dict[str, Any]]  # Allow flexible output types
+    ]
 )
 
 # User context storage - in a production app, this would use a database
@@ -103,6 +102,19 @@ def format_agent_response(output):
     # Check if output is a Pydantic model and convert to dict
     if hasattr(output, "model_dump"):
         output = output.model_dump()
+    elif hasattr(output, "dict"):  # Support for older pydantic versions
+        output = output.dict()
+    
+    # Handle dictionary output
+    if isinstance(output, dict):
+        if "message" in output:
+            return output["message"]
+        elif "response" in output:
+            return output["response"]
+        elif "content" in output:
+            return output["content"]
+        # Return JSON string if no specific fields found
+        return json.dumps(output)
     
     # Default: return as string
     return str(output)
@@ -149,8 +161,15 @@ async def stream_agent_response(user_id: str, message: str):
             context=context
         )
         
-        # Format the response
-        response_content = format_agent_response(result.final_output)
+        # Format the response safely
+        try:
+            response_content = format_agent_response(result.final_output)
+        except Exception as format_error:
+            # If there's an error formatting the output, return a simpler response
+            if hasattr(result, 'final_output') and result.final_output is not None:
+                response_content = str(result.final_output)
+            else:
+                response_content = "I'm sorry, I wasn't able to generate a proper response."
         
         # Add assistant response to chat history
         chat_history.append({
@@ -221,8 +240,15 @@ async def chat(request: ChatRequest):
             context=context
         )
         
-        # Format the response
-        response_content = format_agent_response(result.final_output)
+        # Format the response safely
+        try:
+            response_content = format_agent_response(result.final_output)
+        except Exception as format_error:
+            # If there's an error formatting the output, return a simpler response
+            if hasattr(result, 'final_output') and result.final_output is not None:
+                response_content = str(result.final_output)
+            else:
+                response_content = "I'm sorry, I wasn't able to generate a proper response."
         
         # Add assistant response to chat history
         chat_history.append({
