@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from typing import Optional
 import os
+import asyncio
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -168,15 +169,50 @@ async def stream_agent_response(user_id: str, message: str):
             else:
                 response_content = "I'm sorry, I wasn't able to generate a proper response."
         
+        # Simulate token-by-token streaming by breaking up the response into chunks
+        # Store the full response for chat history
+        full_response = response_content
+        
+        # Simulate progressive token streaming by splitting into chunks
+        # First yield a thinking message
+        yield f"data: {{\"type\": \"loading\", \"content\": \"Generating response...\"}}\n\n"
+        
+        # Split the response into words to simulate token-by-token generation
+        words = response_content.split()
+        chunks = []
+        
+        # Create chunks of approximately 5-10 words
+        chunk_size = min(max(len(words) // 10, 5), 10)  # Between 5-10 words per chunk
+        if chunk_size < 1:
+            chunk_size = 1
+            
+        for i in range(0, len(words), chunk_size):
+            end = min(i + chunk_size, len(words))
+            chunk = ' '.join(words[i:end])
+            chunks.append(chunk)
+        
+        # Keep track of accumulated text to send progressive updates
+        accumulated_text = ""
+        
+        # Stream each chunk with a small delay between them
+        for chunk in chunks:
+            accumulated_text += chunk + " "
+            
+            # Send the accumulated text so far
+            yield f"data: {{\"type\": \"partial\", \"content\": {json.dumps(accumulated_text.strip())}}}\n\n"
+            
+            # In a production environment, you might want to add a small delay here
+            await asyncio.sleep(0.05)  # Add a slight delay between chunks
+        
+        # Send the final completed message
+        yield f"data: {{\"type\": \"content\", \"content\": {json.dumps(full_response)}}}\n\n"
+        
         # Add assistant response to chat history
         chat_history.append({
             "role": "assistant",
-            "content": response_content,
+            "content": full_response,
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
-        
-        # Stream the response - properly formatted as SSE with type indicator
-        yield f"data: {{\"type\": \"content\", \"content\": {json.dumps(response_content)}}}\n\n"
         
     except Exception as e:
         error_message = f"Sorry, I encountered an error: {str(e)}"

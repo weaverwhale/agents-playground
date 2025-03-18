@@ -140,6 +140,19 @@ function App(): React.ReactElement {
                           : msg
                       )
                     );
+                  } else if (parsedData.type === 'partial') {
+                    // Update with partial response while still streaming
+                    setMessages((prevMessages) =>
+                      prevMessages.map((msg) =>
+                        msg.id === placeholderId
+                          ? {
+                              ...msg,
+                              content: parsedData.content,
+                              isPartial: true,
+                            }
+                          : msg
+                      )
+                    );
                   } else if (
                     parsedData.type === 'content' ||
                     parsedData.type === 'error'
