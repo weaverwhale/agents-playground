@@ -117,16 +117,24 @@ function App(): React.ReactElement {
             }
 
             const chunk = decoder.decode(value, { stream: true });
-            responseText += chunk;
 
-            // Update the placeholder message
-            setMessages((prevMessages) =>
-              prevMessages.map((msg) =>
-                msg.id === placeholderId
-                  ? { ...msg, content: responseText, isPartial: false }
-                  : msg
-              )
-            );
+            // Parse SSE format: data: [content]\n\n
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const content = line.slice(6); // Remove 'data: ' prefix
+                responseText += content;
+
+                // Update the placeholder message
+                setMessages((prevMessages) =>
+                  prevMessages.map((msg) =>
+                    msg.id === placeholderId
+                      ? { ...msg, content: responseText, isPartial: false }
+                      : msg
+                  )
+                );
+              }
+            }
           }
         } catch (error) {
           console.error('Error processing stream:', error);

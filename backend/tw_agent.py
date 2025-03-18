@@ -4,11 +4,20 @@ import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 import uvicorn
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Explicitly set the OpenAI API key in the environment
+openai_api_key = os.getenv('OPENAI_API_KEY')
+if openai_api_key:
+    os.environ['OPENAI_API_KEY'] = openai_api_key
 
 # Import our tools (only the ones defined in tw_tools.py)
 from tw_tools import (
@@ -150,7 +159,7 @@ async def stream_agent_response(user_id: str, message: str):
         input_list = message
     
     # Initial response to let the client know we're processing
-    yield "Processing your request...\n"
+    yield f"data: Processing your request...\n\n"
     
     try:
         # Process the message with the agent
@@ -170,8 +179,8 @@ async def stream_agent_response(user_id: str, message: str):
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
         
-        # Stream the response
-        yield response_content
+        # Stream the response - properly formatted as SSE
+        yield f"data: {response_content}\n\n"
         
     except Exception as e:
         error_message = f"Sorry, I encountered an error: {str(e)}"
@@ -180,7 +189,7 @@ async def stream_agent_response(user_id: str, message: str):
             "content": error_message,
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
-        yield error_message
+        yield f"data: {error_message}\n\n"
 
 # API endpoints
 @app.post("/chat/stream")
@@ -188,7 +197,12 @@ async def chat_stream(request: ChatRequest):
     """Stream a response from Moby Ecommerce Assistant"""
     return StreamingResponse(
         stream_agent_response(request.user_id, request.message),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream"
+        }
     )
 
 @app.post("/chat")
