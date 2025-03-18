@@ -1,0 +1,20 @@
+{
+  "name": "travel-agent-app",
+  "version": "1.0.0",
+  "description": "Travel Agent Chat with FastAPI backend and React frontend",
+  "main": "index.js",
+  "scripts": {
+    "start:backend": "cd backend && python3 tw_agent.py",
+    "install:backend": "cd backend && pip3 install -r requirements.txt",
+    "start:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "install:frontend": "cd frontend && npm install",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "setup": "npm install && npm run install:frontend && npm run install:backend"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "author": "",
+  "license": "ISC"
+} 

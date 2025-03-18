@@ -1,138 +1,100 @@
-# OpenAI Agents SDK Demo
+# Chat Application
 
-This repository contains examples of using the OpenAI Agents SDK to build intelligent travel planning agents with progressively advanced capabilities.
+This project provides a chat interface to interact with an AI assistant that can help with travel planning, restaurant recommendations, local events, and transportation options.
 
 ## Project Structure
 
-- `v1_basic_agent.py` - A simple agent example that generates a haiku about recursion
-- `v2_structured_output.py` - Travel agent with structured output using Pydantic models
-- `v3_tool_calls.py` - Travel agent with tool calls for weather forecasting
-- `v4_handoffs.py` - Travel agent with specialized sub-agents for flights and hotels
-- `v5_guardrails_and_context.py` - Travel agent with budget guardrails and user context
-- `v6_streamlit_agent.py` - A Streamlit web interface for the travel agent with chat memory
+- **Backend**: FastAPI-based streaming API endpoint for the AI assistant
+- **Frontend**: React-based chat interface
 
-## Setup
+## Setup and Installation
 
-1. Install the required dependencies:
+### Prerequisites
+
+- Python 3.8+ for the backend
+- Node.js and npm for the frontend
+
+### Backend Setup
+
+1. Install the Python dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Create a `.env` file with your OpenAI API key:
-
-```
-OPENAI_API_KEY=your_api_key_here
-MODEL_CHOICE=gpt-4o-mini  # or another model of your choice
-```
-
-## Running the Examples
-
-### Basic Agent (v1)
-
-Run the basic agent example:
+2. Set up your environment variables (optional):
 
 ```bash
-python v1_basic_agent.py
+# Create a .env file based on .env.example
+cp .env.example .env
+# Edit the .env file with your preferred settings
 ```
 
-This will execute a simple agent that generates a haiku about recursion.
-
-### Structured Output Agent (v2)
-
-Run the structured output travel agent example:
+3. Run the FastAPI server:
 
 ```bash
-python v2_structured_output.py
+python tw_agent_endpoint.py
 ```
 
-This demonstrates using Pydantic models to create structured travel plans with destinations, activities, and budget information.
+The backend server will run at http://localhost:8000 by default.
 
-### Tool Calls Agent (v3)
+### Frontend Setup
 
-Run the tool calls travel agent example:
+1. Navigate to the frontend directory:
 
 ```bash
-python v3_tool_calls.py
+cd frontend
 ```
 
-This version adds a weather forecasting tool to provide weather information for travel destinations.
-
-### Handoffs Agent (v4)
-
-Run the handoffs travel agent example:
+2. Install the npm dependencies:
 
 ```bash
-python v4_handoffs.py
+npm install
 ```
 
-This version introduces specialized sub-agents for flight and hotel recommendations, demonstrating agent handoffs.
-
-### Guardrails and Context Agent (v5)
-
-Run the guardrails and context travel agent example:
+3. Start the React development server:
 
 ```bash
-python v5_guardrails_and_context.py
+npm start
 ```
 
-This version adds:
-- Budget analysis guardrails to validate if a travel budget is realistic
-- User context to store and use preferences like preferred airlines and hotel amenities
+The frontend will run at http://localhost:3000 by default and will proxy API requests to the backend at http://localhost:8000.
 
-[Optional] Follow the [Logfire setup intructions](https://logfire.pydantic.dev/docs/#logfire) (free to get started) for tracing in this version and version 6. This example will still work with Logfire configured but you won't get tracing.
+## API Endpoints
 
-### Streamlit Chat Interface (v6)
+- **POST /chat/stream**: Stream a response from the AI assistant
+- **POST /chat**: Get a non-streaming response from the AI assistant
+- **GET /chat/{user_id}/history**: Get the chat history for a user
+- **POST /user/{user_id}/preferences**: Update user preferences
+- **DELETE /chat/{user_id}**: Clear the chat history for a user
 
-Launch the Streamlit web interface:
+## Features
 
-```bash
-streamlit run v6_streamlit_agent.py
-```
+- Real-time streaming responses from the AI agent
+- Personalized travel recommendations based on user preferences
+- Support for flight and hotel recommendations
+- Restaurant and local event search capabilities
+- Transportation options
+- Comprehensive travel planning
 
-This will start a web server and open a browser window with the travel agent chat interface. Features include:
+## Technologies Used
 
-- Persistent chat history within a session
-- User preference management in the sidebar
-- Beautifully formatted responses for different types of travel information
-- Support for conversation memory across multiple turns
+- **Backend**: FastAPI, OpenAI Agents SDK, Pydantic
+- **Frontend**: React, Tailwind CSS, axios, react-markdown
 
-## Environment Variables
+## Development
 
-The following environment variables can be configured in your `.env` file:
+The application uses FastAPI for the backend and React for the frontend. The backend provides a streaming API endpoint that the frontend connects to for real-time chat responses.
 
-- `OPENAI_API_KEY` (required): Your OpenAI API key
-- `MODEL_CHOICE` (optional): The OpenAI model to use (default: gpt-4o-mini)
+### Backend Structure
 
-## Features Demonstrated
+- **tw_agent_endpoint.py**: Main FastAPI application with API endpoints
+- **tw_tools.py**: Custom tools for the AI assistant
+- **v5_guardrails_and_context.py**: Context and guardrails for the AI assistant
 
-1. **Basic Agent Configuration (v1)**
-   - Instructions and model settings
-   - Simple agent execution
+### Frontend Structure
 
-2. **Structured Output (v2)**
-   - Using Pydantic models for structured responses
-   - Travel planning with organized information
-
-3. **Tool Calls (v3)**
-   - Custom tools for retrieving external data
-   - Weather forecasting integration
-
-4. **Agent Handoffs (v4)**
-   - Specialized agents for flights and hotels
-   - Delegation to domain-specific experts
-
-5. **Guardrails and Context (v5)**
-   - Input validation with budget guardrails
-   - User context for personalized recommendations
-   - Preference-based sorting of results
-
-6. **Chat Interface (v6)**
-   - Conversation history and context
-   - User preference management
-   - Formatted responses for different output types
-   - Thread management for persistent conversations
-
-## Notes
-
-This is a demonstration project and uses simulated data for weather, flights, and hotels. In a production environment, you would integrate with real APIs for this information.
+- **src/App.js**: Main React component
+- **src/components/**: React components
+  - **ChatMessage.js**: Component for rendering chat messages
+  - **UserPreferences.js**: Component for managing user preferences 
