@@ -150,8 +150,8 @@ async def stream_agent_response(user_id: str, message: str):
         # First message
         input_list = message
     
-    # Initial response to let the client know we're processing
-    yield f"data: Processing your request...\n\n"
+    # Initial response to let the client know we're processing - with special loading indicator
+    yield f"data: {{\"type\": \"loading\", \"content\": \"Processing your request...\"}}\n\n"
     
     try:
         # Process the message with the agent
@@ -178,8 +178,8 @@ async def stream_agent_response(user_id: str, message: str):
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
         
-        # Stream the response - properly formatted as SSE
-        yield f"data: {response_content}\n\n"
+        # Stream the response - properly formatted as SSE with type indicator
+        yield f"data: {{\"type\": \"content\", \"content\": {json.dumps(response_content)}}}\n\n"
         
     except Exception as e:
         error_message = f"Sorry, I encountered an error: {str(e)}"
@@ -188,7 +188,7 @@ async def stream_agent_response(user_id: str, message: str):
             "content": error_message,
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
-        yield f"data: {error_message}\n\n"
+        yield f"data: {{\"type\": \"error\", \"content\": {json.dumps(error_message)}}}\n\n"
 
 # API endpoints
 @app.post("/chat/stream")

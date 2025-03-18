@@ -122,17 +122,55 @@ function App(): React.ReactElement {
             const lines = chunk.split('\n');
             for (const line of lines) {
               if (line.startsWith('data: ')) {
-                const content = line.slice(6); // Remove 'data: ' prefix
-                responseText += content;
+                try {
+                  const content = line.slice(6); // Remove 'data: ' prefix
+                  const parsedData = JSON.parse(content);
 
-                // Update the placeholder message
-                setMessages((prevMessages) =>
-                  prevMessages.map((msg) =>
-                    msg.id === placeholderId
-                      ? { ...msg, content: responseText, isPartial: false }
-                      : msg
-                  )
-                );
+                  // Handle different message types
+                  if (parsedData.type === 'loading') {
+                    // Update placeholder with loading message
+                    setMessages((prevMessages) =>
+                      prevMessages.map((msg) =>
+                        msg.id === placeholderId
+                          ? {
+                              ...msg,
+                              content: parsedData.content,
+                              isPartial: true,
+                            }
+                          : msg
+                      )
+                    );
+                  } else if (
+                    parsedData.type === 'content' ||
+                    parsedData.type === 'error'
+                  ) {
+                    // Replace loading message with actual content
+                    setMessages((prevMessages) =>
+                      prevMessages.map((msg) =>
+                        msg.id === placeholderId
+                          ? {
+                              ...msg,
+                              content: parsedData.content,
+                              isPartial: false,
+                            }
+                          : msg
+                      )
+                    );
+                  }
+                } catch (error) {
+                  // Fallback for non-JSON messages (backward compatibility)
+                  const content = line.slice(6);
+                  responseText += content;
+
+                  // Update the placeholder message
+                  setMessages((prevMessages) =>
+                    prevMessages.map((msg) =>
+                      msg.id === placeholderId
+                        ? { ...msg, content: responseText, isPartial: false }
+                        : msg
+                    )
+                  );
+                }
               }
             }
           }

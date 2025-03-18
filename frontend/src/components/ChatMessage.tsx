@@ -13,6 +13,24 @@ interface MessageProps {
 const ChatMessage: React.FC<MessageProps> = ({ message }) => {
   const { role, content, timestamp, isPartial } = message;
 
+  // Loading dots animation component
+  const LoadingDots = () => (
+    <div className="flex space-x-2 mt-2">
+      <div
+        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        style={{ animationDelay: '0ms' }}
+      ></div>
+      <div
+        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        style={{ animationDelay: '150ms' }}
+      ></div>
+      <div
+        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        style={{ animationDelay: '300ms' }}
+      ></div>
+    </div>
+  );
+
   return (
     <div className={`message ${role} flex`}>
       <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
@@ -34,8 +52,9 @@ const ChatMessage: React.FC<MessageProps> = ({ message }) => {
           <div className="text-xs text-gray-500 mt-1">{timestamp}</div>
         )}
         {isPartial && (
-          <div className="text-xs text-blue-500 animate-pulse mt-1">
-            typing...
+          <div className="text-xs text-blue-500 mt-1 flex items-center">
+            <span className="mr-2">AI is thinking</span>
+            <LoadingDots />
           </div>
         )}
       </div>
