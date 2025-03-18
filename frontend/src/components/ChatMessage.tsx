@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 
 interface MessageProps {
   message: {
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp?: string;
     isPartial?: boolean;
@@ -38,7 +38,9 @@ const ChatMessage: React.FC<MessageProps> = ({ message }) => {
           src={
             role === 'user'
               ? `https://api.dicebear.com/7.x/avataaars/svg?seed=user`
-              : `https://api.dicebear.com/7.x/bottts/svg?seed=assistant`
+              : role === 'system'
+                ? `https://api.dicebear.com/7.x/bottts/svg?seed=system`
+                : `https://api.dicebear.com/7.x/bottts/svg?seed=assistant`
           }
           alt={role}
           className="w-full h-full object-cover"
