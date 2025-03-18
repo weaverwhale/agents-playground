@@ -1,11 +1,10 @@
-import asyncio
 import uuid
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Optional
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -21,8 +20,7 @@ if openai_api_key:
 
 # Import our tools (only the ones defined in tw_tools.py)
 from tw_tools import (
-    text_to_sql,
-    knowledge_base,
+    moby,
     search_web
 )
 
@@ -57,8 +55,7 @@ moby_agent = Agent(
     model=model,
     tools=[
         # Use only the tools that actually exist in tw_tools.py
-        text_to_sql,
-        knowledge_base,
+        moby,
         search_web
     ]
 )

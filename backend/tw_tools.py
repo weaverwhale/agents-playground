@@ -1,85 +1,92 @@
 import json
 import requests
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+import os
+import uuid
+from typing import Optional
 from agents import function_tool, RunContextWrapper
 
-# API endpoint configurations
-TEXT_TO_SQL_API_ENDPOINT = "https://api.example.com/text-to-sql"
-KNOWLEDGE_BASE_API_ENDPOINT = "https://api.example.com/knowledge-base"
+# Environment configuration
+TW_TOKEN = os.getenv("TW_TOKEN")
+TW_BEARER_TOKEN = os.getenv("TW_BEARER_TOKEN")
+IS_ON_VPN = os.getenv("IS_ON_VPN") == 'true'
+IS_LOCAL = os.getenv("IS_LOCAL") == 'true'
+IS_ORCABASE = os.getenv("IS_ORCABASE") == 'true'
 
-# --- Custom Tools using provided capabilities ---
+# Endpoint configurations
+MOBY_TLD = "https://app.triplewhale.com/api/v2"
+MOBY_ENDPOINT = "{MOBY_TLD}/willy/answer-nlq-question"
 
 @function_tool
-async def text_to_sql(wrapper: RunContextWrapper, query: str, database_context: str, parameters: Optional[Dict[str, Any]] = None) -> str:
+async def moby(wrapper: RunContextWrapper, question: str, shop_id: str, parent_message_id: Optional[str] = None) -> str:
     """
-    Converts natural language to SQL and executes the query against a database.
-    Use this for structured data like product catalogs, order history, inventory, etc.
+    Useful for getting e-commerce analytics and insights from Triple Whale's AI, Moby.
     
     Args:
-        query: Natural language query to convert to SQL
-        database_context: What database/table to query (products, orders, users, etc.)
-        parameters: Additional parameters to use in the query
+        question: Question to ask Triple Whale Moby
+        shop_id: Shopify store URL
+        parent_message_id: Parent message ID for conversation context
         
     Returns:
-        JSON string with query results
+        Response from Moby
     """
     try:
-        # Call the text-to-sql API
+        # Set default shop_id if none is provided
+        if not shop_id:
+            shop_id = "madisonbraids.myshopify.com"
+            
+        print(f"Asking Moby: {question}, {shop_id}")
+        
+        if not TW_BEARER_TOKEN and not TW_TOKEN and not IS_ON_VPN:
+            return "Error: Triple Whale token or VPN not configured."
+        
+        headers = {
+            'content-type': 'application/json'
+        }
+        
+        # Configure headers based on environment
+        if TW_BEARER_TOKEN or IS_LOCAL:
+            headers["Authorization"] = f"Bearer {TW_BEARER_TOKEN}"
+        elif not IS_ON_VPN and TW_TOKEN:
+            headers["x-api-key"] = TW_TOKEN
+        
+        # Generate a UUID for conversation if not provided
+        conversation_id = parent_message_id if parent_message_id else str(uuid.uuid4())
+        
+        # Prepare request payload
+        payload = {
+            "stream": False,
+            "shopId": shop_id,
+            "conversationId": conversation_id,
+            "source": "chat",
+            "dialect": "clickhouse",
+            "userId": "test-user",
+            "additionalShopIds": [],
+            "question": question,
+            "query": question,
+            "generateInsights": True,
+            "isOutsideMainChat": True
+        }
+        
         response = requests.post(
-            TEXT_TO_SQL_API_ENDPOINT,
-            json={
-                "natural_language_query": query,
-                "database_context": database_context,
-                "parameters": parameters or {}
-            }
+            MOBY_ENDPOINT,
+            headers=headers,
+            json=payload
         )
         
         if response.status_code == 200:
-            return response.text
+            data = response.json()
+            
+            if data.get("messages") and len(data["messages"]) > 0:
+                last_message_text = data["messages"][-1].get("text", "") + " "
+                return last_message_text
+            else:
+                return "No answer received from Moby."
         else:
-            return json.dumps({
-                "error": f"Text-to-SQL API returned status code {response.status_code}",
-                "message": "Failed to execute query"
-            })
+            return f"Error: API request failed with status {response.status_code}"
             
     except Exception as e:
-        return json.dumps({"error": str(e)})
-
-@function_tool
-async def knowledge_base(wrapper: RunContextWrapper, query: str, document_type: str, filters: Optional[Dict[str, Any]] = None) -> str:
-    """
-    Query the knowledge base for information about products, policies, or other structured content.
-    
-    Args:
-        query: Natural language query to search for in the knowledge base
-        document_type: Type of documents to search (products, policies, faq, etc.)
-        filters: Optional filters to apply to the search
-        
-    Returns:
-        JSON string with search results
-    """
-    try:
-        # Call the knowledge base API
-        response = requests.post(
-            KNOWLEDGE_BASE_API_ENDPOINT,
-            json={
-                "query": query,
-                "document_type": document_type,
-                "filters": filters or {}
-            }
-        )
-        
-        if response.status_code == 200:
-            return response.text
-        else:
-            # Fallback to web search if knowledge base fails
-            search_query = f"{document_type} {query}"
-            web_results = await wrapper.invoke_tool("web_search", {"search_term": search_query})
-            return json.dumps({"source": "web_search", "results": web_results})
-            
-    except Exception as e:
-        return json.dumps({"error": str(e)})
+        print(f"Error querying Moby: {e}")
+        return f"Error: Could not fetch response from Triple Whale. {str(e)}"
 
 @function_tool
 async def search_web(wrapper: RunContextWrapper, search_term: str) -> str:
