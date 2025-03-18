@@ -280,7 +280,7 @@ async def clear_chat_history(user_id: str):
 
 # Run the API
 if __name__ == "__main__":
-    # Get the port from environment variable or default to 8000
+    # Get the port from environment variable or default to 9876
     # to match the port in the Vite proxy configuration
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 9876))
     uvicorn.run("tw_agent:app", host="0.0.0.0", port=port, reload=True) 
