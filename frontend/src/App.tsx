@@ -167,7 +167,7 @@ function App(): React.ReactElement {
     <div className="flex h-full">
       <div className="chat-container flex-1">
         <header className="bg-blue-600 text-white p-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">Chat Assistant</h1>
+          <h1 className="text-xl font-bold">🐳 Agent Chat</h1>
           <div>
             <button
               onClick={clearChatHistory}
