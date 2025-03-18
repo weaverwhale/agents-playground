@@ -17,8 +17,7 @@ from tw_tools import (
     search_web
 )
 
-from agents import Runner, Agent, ModelSettings
-from v5_guardrails_and_context import UserContext
+from agents import Runner, Agent
 
 # Define output models for the agent
 class ProductRecommendation(BaseModel):
@@ -48,24 +47,21 @@ class PriceComparison(BaseModel):
 model = os.getenv('MODEL_CHOICE', 'gpt-4o-mini')
 
 # Create Moby - an ecommerce assistant agent with the approved tools
-moby_agent = Agent[UserContext](
+moby_agent = Agent(
     name="Moby",
     instructions="""
     You are Moby 🐳, an assistant for e-commerce and marketing strategies on Triple Whale. Your users are marketing professionals and e-commerce managers. 
     Your mission is to assist without revealing your AI origins or internal reasoning. 
-    You will use Consultative/Expert Mode, Professional and Encouraging, and Concise and Insight-numbers Driven in your responses to align with the user’s communication preferences. 
+    You will use Consultative/Expert Mode, Professional and Encouraging, and Concise and Insight-numbers Driven in your responses to align with the user's communication preferences. 
     You never generate generic response.
     
     You can provide personalized product recommendations, help users find the best deals, 
     track orders, answer questions about products, and assist with various shopping-related tasks.
     
-    The user's preferences and shopping history are available in the context, which you can use to 
-    tailor your recommendations.
-    
-    You have access to:
-    1. A text-to-SQL tool that can query product databases and order information
-    2. A knowledge base tool for accessing product information and reviews
-    3. A web search tool for finding current prices, product details, and deals
+    You have access to these specific custom tools:
+    1. text_to_sql: Use this tool to convert natural language to SQL and query product databases, order information, inventory, etc.
+    2. knowledge_base: Use this tool to search for product information, company policies, FAQs, and other structured content.
+    3. search_web: Use this tool to find real-time information about products, prices, reviews from external sources. This tool leverages the system's built-in web search capability.
     
     Always be helpful, informative, and enthusiastic about helping users find the best products.
     Focus on providing accurate information and making the shopping experience smoother.
@@ -108,18 +104,10 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     user_id: str
     message: str
-    preferences: Optional[Dict[str, Any]] = None
 
 class ChatResponse(BaseModel):
     message: str
     thread_id: str
-
-class PreferencesUpdate(BaseModel):
-    budget_range: Optional[Dict[str, float]] = None
-    preferred_brands: Optional[List[str]] = None
-    disliked_brands: Optional[List[str]] = None
-    favorite_categories: Optional[List[str]] = None
-    shipping_preferences: Optional[Dict[str, Any]] = None
 
 # Helper function to format agent responses
 def format_agent_response(output):
@@ -127,100 +115,14 @@ def format_agent_response(output):
     if hasattr(output, "model_dump"):
         output = output.model_dump()
     
-    if isinstance(output, dict):
-        # Handle structured outputs for ecommerce
-        if "name" in output and "price" in output and "category" in output:  # ProductRecommendation
-            response = f"""
-# Product Recommendation: {output.get('name', 'N/A')}
-**Price:** ${output.get('price', 'N/A')}
-**Category:** {output.get('category', 'N/A')}
-**Rating:** {output.get('rating', 'N/A')}/5
-
-**Description:** {output.get('description', 'N/A')}
-
-## Key Features:
-"""
-            for feature in output.get('features', []):
-                response += f"- {feature}\n"
-            
-            response += f"\n**Why this product:** {output.get('recommendation_reason', '')}"
-            return response
-            
-        elif "order_id" in output and "status" in output:  # OrderStatus
-            response = f"""
-# Order Status for #{output.get('order_id', 'N/A')}
-**Status:** {output.get('status', 'N/A')}
-**Estimated Delivery:** {output.get('estimated_delivery', 'N/A')}
-"""
-            if output.get('tracking_number'):
-                response += f"**Tracking Number:** {output.get('tracking_number')}\n"
-                response += f"**Shipping Carrier:** {output.get('shipping_carrier', 'N/A')}\n"
-            
-            if output.get('items'):
-                response += "\n## Items in this order:\n"
-                for item in output.get('items', []):
-                    response += f"- {item.get('quantity', 1)}x {item.get('name', 'Item')} - ${item.get('price', 'N/A')}\n"
-            
-            return response
-            
-        elif "product_name" in output and "retailers" in output:  # PriceComparison
-            response = f"""
-# Price Comparison for {output.get('product_name', 'N/A')}
-**Date of Comparison:** {output.get('comparison_date', 'N/A')}
-
-## Available at:
-"""
-            # Sort retailers by price
-            retailers = sorted(output.get('retailers', []), key=lambda x: x.get('price', float('inf')))
-            for retailer in retailers:
-                response += f"- **{retailer.get('name', 'Retailer')}**: ${retailer.get('price', 'N/A')} "
-                if retailer.get('in_stock') is False:
-                    response += "(Out of Stock) "
-                if retailer.get('coupon_code'):
-                    response += f"- Coupon: {retailer.get('coupon_code')} "
-                response += "\n"
-            
-            best_deal = output.get('best_deal', {})
-            response += f"\n**Best Deal:** ${best_deal.get('price', 'N/A')} at {best_deal.get('name', 'N/A')}"
-            if best_deal.get('reason'):
-                response += f"\n**Why it's the best deal:** {best_deal.get('reason')}"
-            
-            return response
-            
-        # Handle responses from search_web and knowledge_base tools
-        elif "source" in output and "results" in output:
-            if isinstance(output.get('results'), list):
-                # Process array of results
-                response = "# Search Results\n\n"
-                for result in output.get('results'):
-                    response += f"## {result.get('title', 'Result')}\n"
-                    response += f"{result.get('content', 'No content available')}\n\n"
-                return response
-            else:
-                # Single result or unprocessed
-                return f"Search results: {output.get('results', 'No results found')}"
-        
-        # Handle response from text_to_sql tool
-        elif "error" in output:
-            return f"Error: {output.get('error')}\n{output.get('message', '')}"
-    
     # Default: return as string
     return str(output)
 
 # Initialize user context if not exists
-def get_or_create_user_context(user_id: str, preferences: Dict[str, Any] = None):
+def get_or_create_user_context(user_id: str):
     if user_id not in user_contexts:
-        user_contexts[user_id] = UserContext(user_id=user_id)
+        user_contexts[user_id] = {"user_id": user_id}
         chat_histories[user_id] = []
-    
-    # Update preferences if provided
-    if preferences:
-        context = user_contexts[user_id]
-        for key, value in preferences.items():
-            if hasattr(context, key):
-                setattr(context, key, value)
-            else:
-                setattr(context, key, value)  # Add new attributes as needed
     
     return user_contexts[user_id]
 
@@ -296,7 +198,7 @@ async def chat(request: ChatRequest):
     message = request.message
     
     # Initialize or get user context
-    context = get_or_create_user_context(user_id, request.preferences)
+    context = get_or_create_user_context(user_id)
     chat_history = chat_histories[user_id]
     
     # Add user message to chat history
@@ -354,28 +256,6 @@ async def get_chat_history(user_id: str):
     
     return {"messages": chat_histories[user_id]}
 
-@app.post("/user/{user_id}/preferences")
-async def update_preferences(user_id: str, preferences: PreferencesUpdate):
-    """Update user shopping preferences"""
-    context = get_or_create_user_context(user_id)
-    
-    if preferences.budget_range is not None:
-        setattr(context, "budget_range", preferences.budget_range)
-    
-    if preferences.preferred_brands is not None:
-        setattr(context, "preferred_brands", preferences.preferred_brands)
-    
-    if preferences.disliked_brands is not None:
-        setattr(context, "disliked_brands", preferences.disliked_brands)
-    
-    if preferences.favorite_categories is not None:
-        setattr(context, "favorite_categories", preferences.favorite_categories)
-    
-    if preferences.shipping_preferences is not None:
-        setattr(context, "shipping_preferences", preferences.shipping_preferences)
-    
-    return {"status": "success", "message": "Shopping preferences updated successfully"}
-
 @app.delete("/chat/{user_id}")
 async def clear_chat_history(user_id: str):
     """Clear the chat history for a user"""
@@ -386,4 +266,7 @@ async def clear_chat_history(user_id: str):
 
 # Run the API
 if __name__ == "__main__":
-    uvicorn.run("tw_agent:app", host="0.0.0.0", port=8000, reload=True) 
+    # Get the port from environment variable or default to 8000
+    # to match the port in the Vite proxy configuration
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("tw_agent:app", host="0.0.0.0", port=port, reload=True) 

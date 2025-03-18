@@ -1,10 +1,10 @@
 {
-  "name": "travel-agent-app",
+  "name": "agent-app",
   "version": "1.0.0",
-  "description": "Travel Agent Chat with FastAPI backend and React frontend",
-  "main": "index.js",
+  "description": "Agent Chat with FastAPI backend and React frontend",
+  "main": "index.ts",
   "scripts": {
-    "start:backend": "cd backend && python3 tw_agent.py",
+    "start:backend": "cd backend && PORT=8000 python3.9 tw_agent.py",
     "install:backend": "cd backend && pip3 install -r requirements.txt",
     "start:frontend": "cd frontend && npm run dev",
     "build:frontend": "cd frontend && npm run build",

@@ -19,7 +19,7 @@ const ChatMessage: React.FC<MessageProps> = ({ message }) => {
         <img 
           src={role === 'user' 
             ? `https://api.dicebear.com/7.x/avataaars/svg?seed=user` 
-            : `https://api.dicebear.com/7.x/bottts/svg?seed=travel-agent`} 
+            : `https://api.dicebear.com/7.x/bottts/svg?seed=assistant`} 
           alt={role} 
           className="w-full h-full object-cover"
         />

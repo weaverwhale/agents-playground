@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import ReactMarkdown from 'react-markdown';
 import ChatMessage from './components/ChatMessage';
-import UserPreferences from './components/UserPreferences';
 
 interface Message {
   id?: string;
@@ -17,18 +15,17 @@ function App(): React.ReactElement {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showPreferences, setShowPreferences] = useState<boolean>(false);
   const [userId, setUserId] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get or create a user ID
   useEffect(() => {
-    const storedUserId = localStorage.getItem('travelAgentUserId');
+    const storedUserId = localStorage.getItem('chatAgentUserId');
     if (storedUserId) {
       setUserId(storedUserId);
     } else {
       const newUserId = uuidv4();
-      localStorage.setItem('travelAgentUserId', newUserId);
+      localStorage.setItem('chatAgentUserId', newUserId);
       setUserId(newUserId);
     }
 
@@ -156,22 +153,12 @@ function App(): React.ReactElement {
     }
   };
 
-  const togglePreferences = (): void => {
-    setShowPreferences(!showPreferences);
-  };
-
   return (
     <div className="flex h-full">
       <div className="chat-container flex-1">
         <header className="bg-blue-600 text-white p-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">✈️ Travel Planner Assistant</h1>
+          <h1 className="text-xl font-bold">Chat Assistant</h1>
           <div>
-            <button 
-              onClick={togglePreferences}
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
-            >
-              {showPreferences ? 'Hide Preferences' : 'Show Preferences'}
-            </button>
             <button 
               onClick={clearChatHistory}
               className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
@@ -188,10 +175,6 @@ function App(): React.ReactElement {
             ))}
             <div ref={messagesEndRef} />
           </div>
-          
-          {showPreferences && (
-            <UserPreferences userId={userId} />
-          )}
         </div>
         
         <form onSubmit={handleSubmit} className="chat-input-container">
@@ -200,7 +183,7 @@ function App(): React.ReactElement {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about travel plans, restaurants, or events..."
+              placeholder="Type your message here..."
               className="chat-input flex-1 mr-2"
               disabled={isLoading}
             />
