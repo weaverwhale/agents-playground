@@ -6,7 +6,7 @@ import socketio
 import uuid
 import traceback
 
-from agent import Runner, moby_agent
+from agent import CustomRunner, moby_agent
 from utils import format_agent_response, log, get_timestamp
 import state
 
@@ -116,9 +116,12 @@ def register_socketio_handlers(sio: socketio.AsyncServer):
                     "content": "Generating response..."
                 }, room=sid)
                 
+                # Reset tool notification tracking for this run
+                context['sent_tool_notifications'] = set()
+                
                 # Now, run the agent to get the response
                 log(f"Running agent for user {user_id}", "DEBUG")
-                result = await Runner.run(
+                result = await CustomRunner.run(
                     moby_agent, 
                     input_list, 
                     context=context,

@@ -9,7 +9,7 @@ import asyncio
 from datetime import datetime
 
 from models import ChatRequest, ChatResponse
-from agent import Runner, moby_agent
+from agent import CustomRunner, moby_agent
 from utils import format_agent_response, log, get_timestamp
 import state
 
@@ -35,9 +35,12 @@ async def stream_agent_response(user_id: str, message: str):
     # Create a modified context for HTTP streaming
     stream_context = dict(context or {})
     
+    # Reset tool notification tracking for this run
+    stream_context['sent_tool_notifications'] = set()
+    
     # Create a task to process the agent's response
     process_task = asyncio.create_task(
-        Runner.run(
+        CustomRunner.run(
             moby_agent,
             input_list,
             context=stream_context
@@ -136,7 +139,7 @@ async def chat(request: ChatRequest):
     
     try:
         # Process the message with the agent
-        result = await Runner.run(
+        result = await CustomRunner.run(
             moby_agent, 
             input_list, 
             context=context
