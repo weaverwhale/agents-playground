@@ -32,7 +32,6 @@ class SocketManager {
    */
   public getSocket(): Socket {
     if (!this.socket) {
-      console.log('Creating new socket connection');
       this.socket = io(window.location.origin, {
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
@@ -42,7 +41,6 @@ class SocketManager {
 
       // Set up global connection event handlers
       this.socket.on('connect', () => {
-        console.log('Socket connected');
         this.notifyConnectionListeners(true);
 
         // Request history for all connected users on reconnection
@@ -52,12 +50,10 @@ class SocketManager {
       });
 
       this.socket.on('disconnect', () => {
-        console.log('Socket disconnected');
         this.notifyConnectionListeners(false);
       });
 
       this.socket.on('reconnect', () => {
-        console.log('Socket reconnected');
         this.notifyConnectionListeners(true);
 
         // Request history for all connected users on reconnection
@@ -93,7 +89,6 @@ class SocketManager {
    */
   public requestHistory(userId: string): void {
     if (this.socket && this.socket.connected && userId) {
-      console.log(`Requesting history for user ${userId}`);
       this.socket.emit('get_chat_history', { user_id: userId });
     }
   }

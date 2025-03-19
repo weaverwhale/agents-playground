@@ -529,19 +529,12 @@ export const useChat = ({ userId }: UseChatProps) => {
 
   // Handler for chat history
   const handleChatHistory = useCallback((data: any) => {
-    console.log('Received chat history:', data);
     if (data.messages && data.messages.length > 0 && isMounted.current) {
-      console.log(`Setting ${data.messages.length} messages from history`);
       // Format messages to ensure they have all required properties
       const formattedMessages = data.messages.map((msg: any) =>
         formatMessage(msg)
       );
       setMessages(formattedMessages);
-    } else {
-      console.log('No messages in chat history or component not mounted', {
-        hasMessages: data.messages && data.messages.length > 0,
-        isMounted: isMounted.current,
-      });
     }
   }, []);
 

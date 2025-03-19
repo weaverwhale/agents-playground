@@ -100,7 +100,6 @@ function App(): React.ReactElement {
 
       // If connected via socket, explicitly request history
       if (isConnected && !connectionError) {
-        console.log('Requesting chat history via socket');
         // Force a request for history
         getChatHistory();
         return;
@@ -108,7 +107,6 @@ function App(): React.ReactElement {
 
       // If there's a connection issue, try the HTTP fallback
       if (connectionError || !isConnected) {
-        console.log('Using HTTP fallback for chat history');
         httpFallback
           .loadChatHistory(userId)
           .then((historyMessages) => {

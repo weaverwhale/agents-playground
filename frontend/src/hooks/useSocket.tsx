@@ -96,7 +96,7 @@ export const useSocket = ({
       hasRequestedHistoryRef.current = true;
       socketRef.current.emit('get_chat_history', { user_id: userId });
     } else {
-      console.warn('Socket not connected, cannot get chat history');
+      // Silent failure - let the socket manager try to handle it
       socketManager.requestHistory(userId);
     }
   };
