@@ -31,8 +31,14 @@ async def search_web(
         
         log(f"Search web (fallback) tool called with term: '{search_term}'", "INFO")
         
+        # Send a starting notification for the secondary web_search tool
+        await send_tool_notification(context, "web_search", "starting")
+        
         # Use the web_search tool from the wrapper
         result = await wrapper.invoke_tool("web_search", {"search_term": search_term})
+        
+        # Send a completion notification for the secondary web_search tool
+        await send_tool_notification(context, "web_search", "completed")
         
         # Return as JSON
         response = json.dumps({"source": "web_search", "results": result})
@@ -44,5 +50,13 @@ async def search_web(
     except Exception as e:
         error_msg = f"Error in search_web: {e}"
         log(error_msg, "ERROR")
+        
+        # Try to send completion notification for the secondary tool if it failed
+        try:
+            context = getattr(wrapper, 'context', {})
+            await send_tool_notification(context, "web_search", "completed")
+        except:
+            pass
+            
         await send_tool_completion_notification(wrapper, "search_web")
         return json.dumps({"error": str(e), "message": "Failed to search the web"}) 
