@@ -95,10 +95,15 @@ def register_socketio_handlers(sio: socketio.AsyncServer):
                 
                 # Now, run the agent to get the response
                 log(f"Running agent for user {user_id}", "DEBUG")
+                # Create a request context that has a reference to the user context
+                request_context = dict(context)
+                # Add the user context as a reference for persistent data
+                request_context['user_context'] = context
+                
                 result = await CustomRunner.run(
                     moby_agent, 
                     input_list, 
-                    context=context,
+                    context=request_context,
                     socket=sio,
                     sid=sid
                 )

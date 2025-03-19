@@ -7,6 +7,7 @@ export interface Message {
   isTool?: boolean;
   tool?: string;
   toolStatus?: 'starting' | 'completed';
+  callId?: number | null;
 }
 
 export interface MessageProps {
@@ -18,6 +19,7 @@ export interface MessageProps {
     isTool?: boolean;
     tool?: string; // Add tool name if available directly
     toolStatus?: 'starting' | 'completed';
+    callId?: number | null;
   };
   userId?: string;
 }

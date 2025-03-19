@@ -29,7 +29,7 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
   const getToolStatusText = () => {
     if (!isToolMessage && !isPartial) return 'AI is thinking';
     if (toolCompleted) return 'Tool completed, waiting for next step...';
-    if (toolName) return `Working with ${toolName}...`;
+    if (toolName) return `Working with ${formatToolName(toolName)}...`;
     return 'AI is thinking';
   };
 
@@ -75,10 +75,14 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
       <div className="flex-1">
         {isToolMessage ? (
           <div
-            className={`tool-message p-2 rounded ${toolStatus === 'completed' ? 'bg-green-50' : 'bg-blue-50'}`}
+            className={`tool-message p-2 rounded ${
+              toolStatus === 'completed' ? 'bg-green-50' : 'bg-blue-50'
+            } ${toolStatus === 'completed' ? 'border-l-4 border-green-400' : isPartial ? 'border-l-4 border-blue-400' : ''}`}
           >
             <p
-              className={`font-medium ${toolStatus === 'completed' ? 'text-green-700' : 'text-blue-700'}`}
+              className={`font-medium ${
+                toolStatus === 'completed' ? 'text-green-700' : 'text-blue-700'
+              }`}
             >
               {toolStatus === 'completed'
                 ? '✓ Tool completed'

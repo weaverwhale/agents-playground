@@ -38,6 +38,9 @@ async def stream_agent_response(user_id: str, message: str):
     # Reset tool notification tracking for this run - using a dictionary now instead of a set
     stream_context['sent_tool_notifications'] = {}
     
+    # Add the user context as a reference for persistent data
+    stream_context['user_context'] = context
+    
     # Create a task to process the agent's response
     process_task = asyncio.create_task(
         CustomRunner.run(

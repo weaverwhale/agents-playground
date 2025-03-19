@@ -76,7 +76,9 @@ function App(): React.ReactElement {
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || streamInProgress) {
+      return;
+    }
 
     // Add user message to UI immediately
     const userMessage = addUserMessage(input);
@@ -201,7 +203,7 @@ function App(): React.ReactElement {
               placeholder="Type your message here..."
               className="chat-input flex-1 mr-2"
             />
-            {streamInProgress ? (
+            {streamInProgress || isLoading ? (
               <button
                 type="button"
                 onClick={handleCancelStream}
@@ -213,7 +215,7 @@ function App(): React.ReactElement {
               <button
                 type="submit"
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                disabled={isLoading}
+                disabled={isLoading || streamInProgress}
               >
                 {isLoading ? 'Sending...' : 'Send'}
               </button>

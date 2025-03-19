@@ -31,42 +31,109 @@ async def send_tool_notification(context: Dict[str, Any], tool_name: str, status
         socket = context.get('socket')
         sid = context.get('sid')
         
-        # For starting notifications, ensure we don't send a duplicate starting event
-        # while the tool is still in progress (doesn't have a completed notification yet)
-        sent_notifications = context.get('sent_tool_notifications', {})
+        # Initialize data structures if they don't exist
+        if 'sent_tool_notifications' not in context:
+            context['sent_tool_notifications'] = {}
+            
+        if 'tool_call_counters' not in context:
+            context['tool_call_counters'] = {}
+            
+        if 'active_tool_calls' not in context:
+            context['active_tool_calls'] = {}
+            
+        # Get the user's persistent context (parent of the request context)
+        # We need to store global counter in the user context to persist across messages
+        user_context = context.get('user_context', context)
+            
+        # Initialize the global tool counter in the user context if it doesn't exist
+        if 'global_tool_counter' not in user_context:
+            user_context['global_tool_counter'] = 0
+            
+        # Tool call tracking maps
+        tool_counters = context['tool_call_counters']
+        active_calls = context['active_tool_calls']
         
-        # Different behavior based on status
         if status == "starting":
-            # Check if we've already sent a starting notification for this tool
-            # and haven't sent a completion notification yet
-            current_status = sent_notifications.get(tool_name)
-            if current_status == "starting":
-                # Already sent a starting notification and haven't completed it yet
-                log(f"Skipping duplicate starting notification for: {tool_name}", "DEBUG")
-                return False
+            # Generate a new unique ID for this specific tool call
+            call_uuid = str(uuid.uuid4())
+            
+            # Increment the global counter for a truly new counter each time
+            # Use the counter from the user context to persist across messages
+            user_context['global_tool_counter'] += 1
+            call_id = user_context['global_tool_counter']
+            
+            # Track this counter in the per-tool counter map
+            if tool_name not in tool_counters:
+                tool_counters[tool_name] = []
+            tool_counters[tool_name].append(call_id)
+            
+            # Track this active call in the active calls map
+            active_calls[call_uuid] = {
+                'tool': tool_name,
+                'call_id': call_id
+            }
+            
+            # Store the current tool call for later completion
+            context['current_tool_call_uuid'] = call_uuid
+            
+            log(f"Starting new tool call: {tool_name} with call_id {call_id}", "DEBUG")
+        else:  
+            # For "completed" notifications, find the matching call ID
+            call_id = 1  # Default fallback
+            call_uuid = context.get('current_tool_call_uuid')
+            
+            if call_uuid and call_uuid in active_calls:
+                # We have a direct match from the current UUID
+                call_data = active_calls[call_uuid]
+                call_id = call_data['call_id']
+                
+                # Only remove from active calls when completed, not for other statuses
+                if status == "completed":
+                    del active_calls[call_uuid]
+                    log(f"Completed and removed tool call: {tool_name} with call_id {call_id}", "DEBUG")
+            else:
+                # Fallback: try to find the latest call ID for this tool
+                if tool_name in tool_counters and tool_counters[tool_name]:
+                    call_id = tool_counters[tool_name][-1]
+                    log(f"No UUID match, using latest call ID for {tool_name}: {call_id}", "DEBUG")
+                else:
+                    log(f"No call ID found for {tool_name}, using default ID 1", "DEBUG")
         
+        # Create a unique key for notification tracking
+        tool_call_key = f"{tool_name}_call_{call_id}"
+        
+        # Check for duplicate notifications
+        sent_notifications = context.get('sent_tool_notifications', {})
+        if status == "starting" and tool_call_key in sent_notifications and sent_notifications[tool_call_key] == "starting":
+            log(f"Skipping duplicate starting notification for: {tool_call_key}", "DEBUG")
+            return False
+        
+        # If we have a socket connection, send the notification
         if socket and sid:
-            log(f"Sending tool notification for: {tool_name} ({status})", "DEBUG")
+            log(f"Sending tool notification for: {tool_name} (call #{call_id}, {status})", "DEBUG")
             
             # Different message content based on status
             content = f"Using tool: {tool_name}..." if status == "starting" else f"Tool {tool_name} completed"
             
+            # Ensure a unique timestamp for each tool notification to prevent client deduplication
+            # Add a unique call counter to each message
+            unique_content = f"{content} [call_{call_id}_{uuid.uuid4().hex[:6]}]"
+            
+            # Send the notification
             await socket.emit('stream_update', {
                 "type": "tool",
-                "content": content,
+                "content": unique_content,
                 "tool": tool_name,
-                "status": status
+                "status": status,
+                "call_id": call_id  # Add call_id to help client track specific calls
             }, room=sid)
             
             # Track that we've sent this notification and its status
-            # This allows us to track both starting and completed states
-            if 'sent_tool_notifications' not in context:
-                context['sent_tool_notifications'] = {}
-            context['sent_tool_notifications'][tool_name] = status
+            sent_notifications[tool_call_key] = status
             
             # For "starting" notifications, yield control to the event loop to ensure the notification is processed
             if status == "starting":
-                await asyncio.sleep(0)
+                await asyncio.sleep(0.1)  # Small delay to ensure notifications are processed in order
                 
             return True
     except Exception as e:
