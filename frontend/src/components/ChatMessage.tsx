@@ -28,7 +28,8 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
   const getToolStatusText = () => {
     if (!isToolMessage && !isPartial) return 'AI is thinking';
     if (toolCompleted) return 'Tool completed, waiting for next step...';
-    return `Working with ${toolName}...`;
+    if (toolName) return `Working with ${toolName}...`;
+    return 'AI is thinking';
   };
 
   // Determine color for tool status

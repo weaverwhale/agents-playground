@@ -133,6 +133,40 @@ function App(): React.ReactElement {
     }
   };
 
+  // Function to get the last user message from the messages array
+  const getLastUserMessage = (): string => {
+    // Reverse the messages array to find the most recent user message
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        return messages[i].content;
+      }
+    }
+    return ''; // Return empty string if no user messages found
+  };
+
+  // Handle key press in the input field
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Check if the up arrow key was pressed
+    if (e.key === 'ArrowUp') {
+      // Only load the last message if the input field is empty or the cursor is at the beginning
+      const inputElement = e.currentTarget;
+      if (input === '' || inputElement.selectionStart === 0) {
+        const lastMessage = getLastUserMessage();
+        if (lastMessage) {
+          setInput(lastMessage);
+          // Prevent default behavior of moving cursor to the beginning of input
+          e.preventDefault();
+
+          // Set cursor position at the end of the input after state update
+          setTimeout(() => {
+            inputElement.selectionStart = lastMessage.length;
+            inputElement.selectionEnd = lastMessage.length;
+          }, 0);
+        }
+      }
+    }
+  };
+
   return (
     <div className="flex h-full">
       <div className="chat-container flex-1">
@@ -163,6 +197,7 @@ function App(): React.ReactElement {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Type your message here..."
               className="chat-input flex-1 mr-2"
             />

@@ -38,36 +38,37 @@ export const useChat = ({ userId }: UseChatProps) => {
     const toolName = data.tool;
 
     setMessages((prevMessages) => {
-      // First, check if this is a new tool starting after a previous tool completed
+      // For tool starting events
       if (toolStatus === 'starting') {
-        // Find any tool messages that might be for different tools
-        const existingToolMessages = prevMessages.filter(
-          (msg) => msg.isTool && msg.isPartial
+        // Check if we already have an active message for this specific tool
+        const existingToolMessage = prevMessages.find(
+          (msg) => msg.isTool && msg.isPartial && msg.tool === toolName
         );
 
-        // If we have a different tool with 'completed' status but we're now starting a new tool,
-        // we need to make sure we add a new tool message rather than trying to update an existing one
-        const isDifferentToolStarting = existingToolMessages.some(
-          (msg) => msg.tool !== toolName && msg.toolStatus === 'completed'
-        );
-
-        if (isDifferentToolStarting) {
-          // Keep all existing messages (including other completed tool messages)
-          // and add a new tool message for this new tool
-          return [
-            ...prevMessages,
-            {
-              id: uuidv4(),
-              role: 'assistant',
-              content: data.content,
-              timestamp: formatTime(),
-              isPartial: true,
-              isTool: true,
-              tool: toolName,
-              toolStatus: 'starting',
-            },
-          ];
+        // If we already have this exact tool message, don't add a duplicate
+        if (existingToolMessage) {
+          return prevMessages;
         }
+
+        // Filter out any generic loading/thinking messages when a tool starts
+        const messagesWithoutLoadingMessages = prevMessages.filter(
+          (msg) => !(msg.isPartial && msg.role === 'assistant' && !msg.isTool)
+        );
+
+        // For a new tool starting, always add a new message
+        return [
+          ...messagesWithoutLoadingMessages,
+          {
+            id: uuidv4(),
+            role: 'assistant',
+            content: data.content,
+            timestamp: formatTime(),
+            isPartial: true,
+            isTool: true,
+            tool: toolName,
+            toolStatus: 'starting',
+          },
+        ];
       }
 
       // For tool completion, find and update the matching tool message
@@ -90,31 +91,12 @@ export const useChat = ({ userId }: UseChatProps) => {
         }
       }
 
-      // For starting a tool (when no other tool is active or we're reusing same tool)
       // Keep all messages except loading messages
       const nonLoadingMessages = prevMessages.filter(
         (msg) => !(msg.isPartial && msg.role === 'assistant' && !msg.isTool)
       );
 
-      // Find if we already have this exact tool message
-      const existingToolMessage = nonLoadingMessages.find(
-        (msg) => msg.isTool && msg.tool === toolName && msg.isPartial
-      );
-
-      // If we already have this tool message, don't add a duplicate
-      if (existingToolMessage) {
-        // If the status is different, update it
-        if (existingToolMessage.toolStatus !== toolStatus) {
-          return nonLoadingMessages.map((msg) =>
-            msg.isTool && msg.tool === toolName && msg.isPartial
-              ? { ...msg, toolStatus, content: data.content }
-              : msg
-          );
-        }
-        return nonLoadingMessages;
-      }
-
-      // Add the new tool message
+      // If we get here and don't have an existing tool message, add a new one
       return [
         ...nonLoadingMessages,
         {
@@ -149,7 +131,7 @@ export const useChat = ({ userId }: UseChatProps) => {
 
       // Replace any existing loading messages with our tool message
       setMessages((prevMessages) => {
-        // Keep all messages except loading messages
+        // Keep all messages except loading/thinking messages
         const nonLoadingMessages = prevMessages.filter(
           (msg) => !(msg.isPartial && msg.role === 'assistant' && !msg.isTool)
         );
@@ -257,8 +239,10 @@ export const useChat = ({ userId }: UseChatProps) => {
   const handlePartialUpdate = useCallback((data: any) => {
     // When we get partial content, it means tools are done and we should show results
     setMessages((prevMessages) => {
-      // Keep all complete messages
-      const completeMessages = prevMessages.filter((msg) => !msg.isPartial);
+      // Keep all complete messages and tool messages (to maintain tool history)
+      const completeAndToolMessages = prevMessages.filter(
+        (msg) => !msg.isPartial || (msg.isPartial && msg.isTool)
+      );
 
       // Create our new partial message with the updated content
       const newPartialMessage: Message = {
@@ -269,8 +253,8 @@ export const useChat = ({ userId }: UseChatProps) => {
         isPartial: true,
       };
 
-      // Return only complete messages and the new partial message
-      return [...completeMessages, newPartialMessage];
+      // Return complete messages, tool messages, and the new partial message
+      return [...completeAndToolMessages, newPartialMessage];
     });
 
     if (isMounted.current) {
@@ -280,17 +264,16 @@ export const useChat = ({ userId }: UseChatProps) => {
 
   // Handler for final content
   const handleFinalContent = useCallback((data: any) => {
-    // Final content replaces all partial messages including tool messages
+    // Final content replaces all non-tool partial messages but keeps tool messages
     setMessages((prevMessages) => {
-      // Log the existing messages for debugging
-      console.log('Cleaning up tool messages for final response');
-
-      // Keep only complete messages - remove all partial messages including tools
-      const completeMessages = prevMessages.filter((msg) => !msg.isPartial);
+      // Keep complete messages and tool messages
+      const filteredMessages = prevMessages.filter(
+        (msg) => !msg.isPartial || (msg.isPartial && msg.isTool)
+      );
 
       // Add the final message
       return [
-        ...completeMessages,
+        ...filteredMessages,
         {
           id: uuidv4(),
           role: 'assistant',
@@ -542,10 +525,13 @@ export const useChat = ({ userId }: UseChatProps) => {
                       }
 
                       // If we can't find the tool message, create a new completed one
+                      // First remove the placeholder message
+                      const messagesWithoutPlaceholder = prevMessages.filter(
+                        (msg) => msg.id !== placeholderId
+                      );
+
                       return [
-                        ...prevMessages.filter(
-                          (msg) => msg.id !== placeholderId
-                        ),
+                        ...messagesWithoutPlaceholder,
                         {
                           id: uuidv4(),
                           role: 'assistant',
@@ -561,20 +547,19 @@ export const useChat = ({ userId }: UseChatProps) => {
                   }
                 } else if (parsedData.type === 'partial') {
                   // Update with partial response while still streaming
-                  // When we get partial content, remove all tool messages as they're done
+                  // Keep tool messages but remove placeholder
                   setMessages((prevMessages) => {
-                    // Keep all complete messages and non-tool partial messages
+                    // Keep all non-placeholder, non-loading messages
                     const filteredMessages = prevMessages.filter(
-                      (msg) => !msg.isPartial || (msg.isPartial && !msg.isTool)
-                    );
-
-                    // Replace the placeholder with the partial content
-                    const messagesWithoutPlaceholder = filteredMessages.filter(
-                      (msg) => msg.id !== placeholderId
+                      (msg) =>
+                        msg.id !== placeholderId &&
+                        (msg.isTool ||
+                          !msg.isPartial ||
+                          msg.role !== 'assistant')
                     );
 
                     return [
-                      ...messagesWithoutPlaceholder,
+                      ...filteredMessages,
                       {
                         id: uuidv4(),
                         role: 'assistant',
@@ -588,15 +573,17 @@ export const useChat = ({ userId }: UseChatProps) => {
                   parsedData.type === 'content' ||
                   parsedData.type === 'error'
                 ) {
-                  // Final content - replace all partial messages including tools
+                  // Final content - replace all placeholder/loading messages but keep tool messages
                   setMessages((prevMessages) => {
-                    // Keep only complete messages
-                    const completeMessages = prevMessages.filter(
-                      (msg) => !msg.isPartial
+                    // Keep all messages except the placeholder and non-tool partials
+                    const filteredMessages = prevMessages.filter(
+                      (msg) =>
+                        msg.id !== placeholderId &&
+                        (!msg.isPartial || (msg.isPartial && msg.isTool))
                     );
 
                     return [
-                      ...completeMessages,
+                      ...filteredMessages,
                       {
                         id: uuidv4(),
                         role: 'assistant',
@@ -625,15 +612,22 @@ export const useChat = ({ userId }: UseChatProps) => {
         }
       } catch (error) {
         console.error('Error processing stream:', error);
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            role: 'assistant',
-            content:
-              'Sorry, there was an error processing your request. Please try again.',
-            timestamp: formatTime(),
-          },
-        ]);
+        setMessages((prevMessages) => {
+          // Keep all messages except the placeholder
+          const messagesWithoutPlaceholder = prevMessages.filter(
+            (msg) => !msg.isPartial || (msg.isPartial && msg.isTool)
+          );
+
+          return [
+            ...messagesWithoutPlaceholder,
+            {
+              role: 'assistant',
+              content:
+                'Sorry, there was an error processing your request. Please try again.',
+              timestamp: formatTime(),
+            },
+          ];
+        });
       } finally {
         if (isMounted.current) {
           setIsLoading(false);
