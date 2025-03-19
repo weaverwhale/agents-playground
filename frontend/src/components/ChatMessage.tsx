@@ -59,7 +59,7 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
 
   return (
     <div
-      className={`flex items-start ${role === 'user' ? 'justify-end' : 'justify-start'} mb-6`}
+      className={`flex items-start ${role === 'user' ? 'justify-end' : 'justify-start'}`}
     >
       {/* For non-user messages, show avatar first */}
       {role !== 'user' && (

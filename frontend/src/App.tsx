@@ -260,9 +260,11 @@ function App(): React.ReactElement {
                 </p>
               </div>
             ) : (
-              messages.map((message, index) => (
-                <ChatMessage key={index} message={message} userId={userId} />
-              ))
+              <div className="flex flex-col gap-6">
+                {messages.map((message, index) => (
+                  <ChatMessage key={index} message={message} userId={userId} />
+                ))}
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>
