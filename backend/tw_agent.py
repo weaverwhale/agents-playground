@@ -21,6 +21,12 @@ openai_api_key = os.getenv('OPENAI_API_KEY')
 if openai_api_key:
     os.environ['OPENAI_API_KEY'] = openai_api_key
 
+# Utility function for logging with automatic stdout flushing
+def log(message):
+    """Print a message to stdout and flush the buffer immediately."""
+    print(message)
+    sys.stdout.flush()
+
 # Import tools
 from tw_tools import (
     moby,
@@ -41,15 +47,14 @@ class SimpleRunner(Runner):
             run_context['socket'] = socket
             run_context['sid'] = sid
         
-        print(f"Starting run with agent: {agent.name}")
+        log(f"Starting run with agent: {agent.name}")
         
         try:
             result = await Runner.run(agent, input, context=run_context)
-            print(f"Agent run completed")
+            log(f"Agent run completed")
             return result
         except Exception as e:
-            print(f"Error in Runner.run: {str(e)}")
-            sys.stdout.flush()
+            log(f"Error in Runner.run: {str(e)}")
             raise
 
 # Get model from environment or use default
@@ -363,11 +368,11 @@ app = socket_app
 # Socket.IO event handlers
 @sio.event
 async def connect(sid, environ):
-    print(f"Client connected: {sid}")
+    log(f"Client connected: {sid}")
 
 @sio.event
 async def disconnect(sid):
-    print(f"Client disconnected: {sid}")
+    log(f"Client disconnected: {sid}")
     # Cancel any active tasks for this session
     if sid in active_tasks and active_tasks[sid]:
         for task in active_tasks[sid]:
@@ -601,5 +606,5 @@ async def clear_chat_history(sid, data):
 if __name__ == "__main__":
     # Get the port from environment variable or default to 9876
     port = int(os.getenv("PORT", 9876))
-    print(f"Starting server on port {port}")
+    log(f"Starting server on port {port}")
     uvicorn.run("tw_agent:app", host="0.0.0.0", port=port, reload=True) 

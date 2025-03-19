@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import ChatMessage from './components/ChatMessage';
 import { useUserId } from './hooks/useUserId';
 import { useChat } from './hooks/useChat';

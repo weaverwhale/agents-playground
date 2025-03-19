@@ -7,6 +7,12 @@ from typing import Optional
 from agents import function_tool, RunContextWrapper
 import asyncio
 
+# Utility function for logging with automatic stdout flushing
+def log(message):
+    """Print a message to stdout and flush the buffer immediately."""
+    print(message)
+    sys.stdout.flush()
+
 # Endpoint configurations
 MOBY_TLD = "http://willy.srv.whale3.io"
 MOBY_ENDPOINT = "{MOBY_TLD}/willy/answer-nlq-question".format(MOBY_TLD=MOBY_TLD)
@@ -38,9 +44,9 @@ async def moby(wrapper: RunContextWrapper, question: str, shop_id: str, parent_m
                     "tool": "moby"
                 }, room=sid)
         except Exception as e:
-            print(f"Error sending tool notification: {str(e)}")
+            log(f"Error sending tool notification: {str(e)}")
             
-        print("Moby tool called with question: '{question}'")
+        log(f"Moby tool called with question: '{question}'")
 
         # Set default shop_id if none is provided
         if not shop_id:
@@ -83,19 +89,19 @@ async def moby(wrapper: RunContextWrapper, question: str, shop_id: str, parent_m
                 else:
                     return "No answer received from Moby."
             except json.JSONDecodeError as json_err:
-                print(f"JSON parsing error: {json_err}")
+                log(f"JSON parsing error: {json_err}")
                 return f"Error: Could not parse API response. {str(json_err)}"
         else:
             error_msg = f"Error: API request failed with status {response.status_code}"
-            print(error_msg)
+            log(error_msg)
             return error_msg
             
     except Exception as e:
         error_msg = f"Error querying Moby: {e}"
-        print(error_msg)
+        log(error_msg)
         return f"Error: Could not fetch response from Triple Whale. {str(e)}"
     finally:
-        print("Moby tool completed")
+        log("Moby tool completed")
 
 @function_tool
 async def search_web(wrapper: RunContextWrapper, search_term: str) -> str:
@@ -122,18 +128,18 @@ async def search_web(wrapper: RunContextWrapper, search_term: str) -> str:
                     "tool": "search_web"
                 }, room=sid)
         except Exception as e:
-            print(f"Error sending tool notification: {str(e)}")
+            log(f"Error sending tool notification: {str(e)}")
             
-        print(f"Search web tool called with term: '{search_term}'")
+        log(f"Search web tool called with term: '{search_term}'")
         
         web_results = await wrapper.invoke_tool("web_search", {"search_term": search_term})
         
-        print("Search web tool completed")
+        log("Search web tool completed")
         
         return json.dumps({"source": "web_search", "results": web_results})
     except Exception as e:
         error_msg = f"Error in search_web: {e}"
-        print(error_msg)
+        log(error_msg)
         return json.dumps({"error": str(e), "message": "Failed to search the web"})
     
 # Add more tool functions below:
