@@ -1,19 +1,8 @@
-import React, { useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-
-interface MessageProps {
-  message: {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    timestamp?: string;
-    isPartial?: boolean;
-    isTool?: boolean;
-    tool?: string; // Add tool name if available directly
-  };
-}
+import { MessageProps } from '../types';
 
 const ChatMessage: React.FC<MessageProps> = ({ message }) => {
   const { role, content, timestamp, isPartial, isTool, tool } = message;
