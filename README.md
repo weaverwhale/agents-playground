@@ -1,11 +1,11 @@
-# Chat Application
+# 🐳 Agent Chat Application
 
-This project provides a chat interface to interact with an AI assistant.
+This project provides a chat interface to interact with an AI agent.
 
 ## Project Structure
 
-- **Backend**: FastAPI-based streaming API endpoint for the AI assistant
-- **Frontend**: React-based chat interface
+- **Backend**: FastAPI-based streaming API endpoint for the AI agent, offering http, SSR, and Socket.io endpoints
+- **Frontend**: React-based chat interface using Socket.io for real-time communication
 
 ## Setup and Installation
 
