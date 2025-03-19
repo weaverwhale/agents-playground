@@ -11,7 +11,6 @@ from .forecasting import forecasting
 from .marketing_mix_model import marketing_mix_model
 from .preload_dashboard_data import preload_dashboard_data
 from .vision import vision
-# Fallback tools
 from .answer_nlq_question import answer_nlq_question
 from .search_web import search_web
 from .utils import log
@@ -25,7 +24,6 @@ __all__ = [
     'marketing_mix_model',
     'preload_dashboard_data',
     'vision',
-    # Fallback tools
     'answer_nlq_question',
     'search_web',
     'log'
