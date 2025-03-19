@@ -1,11 +1,10 @@
 services:
-  # Production mode with static frontend build
   app:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '9876:9876' # Backend port only (frontend is served as static files)
+      - '9876:9876'
     environment:
       - NODE_ENV=production
       - PYTHONUNBUFFERED=1

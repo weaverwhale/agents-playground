@@ -8,7 +8,7 @@
     "start:backend": "cd backend && PORT=9876 python3.9 -u app.py",
     "start:backend:prod": "cd backend && NODE_ENV=production PORT=9876 python3.9 -u app.py",
     "install:frontend": "cd frontend && npm install",
-    "install:frontend:prod": "cd frontend && npm install --no-package-lock",
+    "install:frontend:prod": "cd frontend && npm install --no-package-lock --include=dev",
     "build:frontend": "cd frontend && npm run build",
     "start:frontend": "cd frontend && npm run dev",
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",

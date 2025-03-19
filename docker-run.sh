@@ -59,12 +59,20 @@ if [ "$CLEAN" = true ]; then
     echo "Cleaning up containers and images..."
     docker-compose down
     docker system prune -f
+    # Remove agent-playground image if it exists
+    if docker image ls | grep -q agent-playground; then
+        echo "Removing agent-playground image..."
+        docker rmi agent-playground
+    fi
 fi
 
 # Build if requested
 if [ "$BUILD" = true ]; then
     echo "Building Docker image..."
-    docker-compose build app
+    # Force a fresh build using the updated Dockerfile
+    docker-compose build --no-cache app
+    # Alternative direct build if docker-compose has issues
+    # docker build -t agent-playground .
 fi
 
 # Run application
