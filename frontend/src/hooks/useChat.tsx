@@ -20,14 +20,53 @@ export const useChat = ({ userId }: UseChatProps) => {
   // Set isMounted to false when component unmounts
   useEffect(() => {
     return () => {
+      setIsLoading(false);
+      setStreamInProgress(false);
       isMounted.current = false;
     };
   }, []);
+
+  // State monitor to catch and fix stale states
+  useEffect(() => {
+    // Function to reset states if needed
+    const checkAndResetStates = () => {
+      const hasPartialMessages = messages.some((msg) => msg.isPartial);
+
+      // If we have no partial messages but states are still true, force a reset
+      if (!hasPartialMessages && (isLoading || streamInProgress)) {
+        setIsLoading(false);
+        setStreamInProgress(false);
+      }
+    };
+
+    // Set up a periodic check
+    const intervalId = setInterval(checkAndResetStates, 500);
+
+    // Clean up on unmount
+    return () => clearInterval(intervalId);
+  }, [messages, isLoading, streamInProgress]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  // Monitor messages to detect non-partial final messages and reset states
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+
+    // If the last message is from the assistant and is not partial, it's a completed response
+    if (
+      lastMessage.role === 'assistant' &&
+      !lastMessage.isPartial &&
+      !lastMessage.isTool
+    ) {
+      setIsLoading(false);
+      setStreamInProgress(false);
     }
   }, [messages]);
 
@@ -177,10 +216,7 @@ export const useChat = ({ userId }: UseChatProps) => {
       return prevMessages;
     });
 
-    // Always maintain streamInProgress during tool operations, even when tools complete
-    if (isMounted.current) {
-      setStreamInProgress(true);
-    }
+    // No need to set state here anymore, it's handled in handleStreamUpdate
   }, []);
 
   // Handler for loading updates
@@ -361,16 +397,11 @@ export const useChat = ({ userId }: UseChatProps) => {
       return result;
     });
 
-    // Always ensure we keep stream in progress during partial updates
-    if (isMounted.current) {
-      setStreamInProgress(true);
-    }
+    // No need to set state here anymore, it's handled in handleStreamUpdate
   }, []);
 
   // Handler for final content
   const handleFinalContent = useCallback((data: any) => {
-    console.log('Receiving final content, completing stream');
-
     // Final content replaces the non-tool partial message but keeps all other messages in their exact positions
     setMessages((prevMessages) => {
       // Find any existing partial non-tool message
@@ -398,37 +429,44 @@ export const useChat = ({ userId }: UseChatProps) => {
       return result;
     });
 
-    // This is the actual end of the stream, so it's safe to set streamInProgress to false
+    // Ensure states are reset after message update
     if (isMounted.current) {
       setIsLoading(false);
-      setStreamInProgress(false); // Only set to false when the entire response is completed
+      setStreamInProgress(false);
     }
   }, []);
 
   // Handler for stream updates
   const handleStreamUpdate = useCallback(
     (data: any) => {
-      // Log detailed information about the update
-      console.log(`Stream update received:`, {
-        type: data.type,
-        tool: data.tool || null,
-        status: data.status || null,
-        contentLength: data.content ? data.content.length : 0,
-      });
-
-      // For any update that's not "content" or "error", ensure we're in streaming mode
+      // ALWAYS set streaming and loading to true for ANY update that isn't a final content or error
       if (
         data.type !== 'content' &&
         data.type !== 'error' &&
         isMounted.current
       ) {
-        setStreamInProgress(true);
+        // For partial updates, we want to keep streamInProgress true but set isLoading to false
+        // since we're no longer in the initial loading state
+        if (data.type === 'partial') {
+          setStreamInProgress(true);
+          setIsLoading(false);
+        } else {
+          // For all other non-final updates, set both to true
+          setStreamInProgress(true);
+          setIsLoading(true);
+        }
       }
 
       try {
         if (data.type === 'error') {
           console.error('Stream error:', data.content);
           handleFinalContent(data); // Treat errors like final content
+
+          // Set streaming to false after handling the error
+          if (isMounted.current) {
+            setIsLoading(false);
+            setStreamInProgress(false);
+          }
           return;
         }
 
@@ -448,13 +486,25 @@ export const useChat = ({ userId }: UseChatProps) => {
         }
 
         if (data.type === 'content') {
+          // For final content, update messages then reset states
           handleFinalContent(data);
+
+          // Explicitly set states to false after handling the content
+          if (isMounted.current) {
+            setIsLoading(false);
+            setStreamInProgress(false);
+          }
           return;
         }
 
         console.warn(`Unknown update type: ${data.type}`);
       } catch (error) {
         console.error('Error handling stream update:', error);
+        // Ensure we reset states on error
+        if (isMounted.current) {
+          setIsLoading(false);
+          setStreamInProgress(false);
+        }
       }
     },
     [
@@ -467,10 +517,9 @@ export const useChat = ({ userId }: UseChatProps) => {
 
   // Handler for stream cancellation
   const handleStreamCancelled = useCallback(() => {
-    if (isMounted.current) {
-      setIsLoading(false);
-      setStreamInProgress(false);
-    }
+    // Force reset both states
+    setIsLoading(false);
+    setStreamInProgress(false);
   }, []);
 
   // Handler for chat history
@@ -575,10 +624,9 @@ export const useChat = ({ userId }: UseChatProps) => {
       ];
     });
 
-    if (isMounted.current) {
-      setIsLoading(true);
-      setStreamInProgress(true);
-    }
+    // Ensure both loading and stream states are set to true
+    setIsLoading(true);
+    setStreamInProgress(true);
 
     return userMessage;
   }, []);
@@ -608,27 +656,50 @@ export const useChat = ({ userId }: UseChatProps) => {
   // Process HTTP stream fallback
   const processHttpStream = useCallback(
     async (response: Response, userMessage: Message) => {
-      let isStreamCompleted = false; // Track if the stream completed properly
+      let isStreamCompleted = false;
+
+      // Ensure loading and stream states are properly set at the start
+      if (isMounted.current) {
+        setIsLoading(true);
+        setStreamInProgress(true);
+      }
 
       try {
-        if (!response.body) {
-          throw new Error('ReadableStream not supported in this browser.');
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('Failed to get response reader');
         }
 
-        // Add a placeholder message for the assistant's response
-        const placeholderId = uuidv4();
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            id: placeholderId,
-            role: 'assistant' as const,
-            content: 'Thinking...',
-            timestamp: formatTime(),
-            isPartial: true,
-          },
-        ]);
+        // Create a placeholder for the response
+        const placeholderId = uuidv4(); // Generate an ID for the placeholder
 
-        const reader = response.body.getReader();
+        // Add a placeholder message if it doesn't exist already
+        let placeholderExists = false;
+        setMessages((prevMessages) => {
+          // Check if we already have a loading message
+          const existingLoadingIndex = prevMessages.findIndex(
+            (msg) => msg.isPartial && !msg.isTool && msg.role === 'assistant'
+          );
+
+          // If we already have a loading message, don't add a new one
+          if (existingLoadingIndex !== -1) {
+            placeholderExists = true;
+            return prevMessages;
+          }
+
+          // Add a new placeholder message
+          return [
+            ...prevMessages,
+            {
+              id: placeholderId,
+              role: 'assistant',
+              content: 'Thinking...',
+              timestamp: formatTime(),
+              isPartial: true,
+            },
+          ];
+        });
+
         const decoder = new TextDecoder();
 
         while (true) {
@@ -843,7 +914,7 @@ export const useChat = ({ userId }: UseChatProps) => {
                       return [...prevMessages, finalMessage];
                     }
 
-                    // Replace the placeholder/partial message with the final one while maintaining all other messages in their exact positions
+                    // Replace the placeholder/partial message with the final one
                     const result = [...prevMessages];
                     result[partialIndex] = finalMessage;
                     return result;
@@ -852,7 +923,7 @@ export const useChat = ({ userId }: UseChatProps) => {
                   // Mark that we successfully completed the stream
                   isStreamCompleted = true;
 
-                  // Only set streamInProgress to false when we get final content
+                  // Reset states when we get final content
                   if (isMounted.current) {
                     setIsLoading(false);
                     setStreamInProgress(false);
@@ -874,33 +945,61 @@ export const useChat = ({ userId }: UseChatProps) => {
             }
           }
         }
-      } catch (error) {
-        console.error('Error processing stream:', error);
-        setMessages((prevMessages) => {
-          // Keep all messages except the placeholder
-          const messagesWithoutPlaceholder = prevMessages.filter(
-            (msg) => !msg.isPartial || (msg.isPartial && msg.isTool)
-          );
 
-          return [
-            ...messagesWithoutPlaceholder,
-            {
-              role: 'assistant' as const,
-              content:
-                'Sorry, there was an error processing your request. Please try again.',
-              timestamp: formatTime(),
-            },
-          ];
-        });
-      } finally {
-        // Only reset streamInProgress if we didn't complete properly
-        if (isMounted.current && !isStreamCompleted) {
+        // At the end of the function, handle stream completion or errors
+        if (!isStreamCompleted && isMounted.current) {
+          setIsLoading(false);
+          setStreamInProgress(false);
+
+          // Update the placeholder message to indicate the stream failed
+          setMessages((prevMessages) => {
+            const placeholderIndex = prevMessages.findIndex(
+              (msg) =>
+                msg.id === placeholderId || (msg.isPartial && !msg.isTool)
+            );
+
+            if (placeholderIndex !== -1) {
+              const result = [...prevMessages];
+              result[placeholderIndex] = {
+                id: uuidv4(),
+                role: 'assistant',
+                content: 'Sorry, there was an error processing your request.',
+                timestamp: formatTime(),
+                isPartial: false,
+              };
+              return result;
+            }
+
+            return prevMessages;
+          });
+        }
+      } catch (error) {
+        console.error('Error processing HTTP stream:', error);
+
+        // Ensure loading and streaming states are reset on error
+        if (isMounted.current) {
           setIsLoading(false);
           setStreamInProgress(false);
         }
+
+        // Add an error message
+        setMessages((prevMessages) => {
+          return [
+            ...prevMessages,
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: `Sorry, there was an error: ${
+                error instanceof Error ? error.message : 'Unknown error'
+              }`,
+              timestamp: formatTime(),
+              isPartial: false,
+            },
+          ];
+        });
       }
     },
-    [messages] // Add messages as a dependency
+    []
   );
 
   // Clear chat history using HTTP fallback

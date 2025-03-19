@@ -24,7 +24,32 @@ function App(): React.ReactElement {
     addUserMessage,
     processHttpStream,
     clearChatHistoryHttp,
+    setIsLoading,
+    setStreamInProgress,
   } = useChat({ userId });
+
+  // Direct state monitor in App component
+  useEffect(() => {
+    // Check for stale states - if the last message is not partial but states are still true
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (
+        lastMessage.role === 'assistant' &&
+        !lastMessage.isPartial &&
+        (isLoading || streamInProgress)
+      ) {
+        // Reset states if we detect a completed message but states are still active
+        setIsLoading(false);
+        setStreamInProgress(false);
+      }
+    }
+  }, [
+    messages,
+    isLoading,
+    streamInProgress,
+    setIsLoading,
+    setStreamInProgress,
+  ]);
 
   const { sendChatRequest, cancelStream, clearChatHistory, isConnected } =
     useSocket({
