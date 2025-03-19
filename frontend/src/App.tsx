@@ -225,9 +225,9 @@ function App(): React.ReactElement {
     <div className="flex flex-col h-full bg-gray-50">
       <div className="flex-1 flex flex-col mx-auto w-full shadow-2xl bg-white">
         {/* Header Bar with subtle gradient and modern styling */}
-        <header className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-4 shadow-md">
-          <div className="flex justify-between items-center px-2">
-            <div className="flex items-center space-x-3">
+        <header className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-3 shadow-md">
+          <div className="flex justify-between items-center max-w-4xl mx-auto">
+            <div className="flex items-center">
               <div className="bg-white/10 p-2 rounded-full w-12 h-12 flex items-center justify-center">
                 <span className="text-2xl">🐳</span>
               </div>
@@ -244,8 +244,8 @@ function App(): React.ReactElement {
         </header>
 
         {/* Chat Messages Container with improved spacing */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50">
+        <div className="flex-1 overflow-hidden flex flex-col bg-gray-50">
+          <div className="w-full flex-1 overflow-y-auto p-3 sm:p-5 max-w-4xl mx-auto">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-5 text-gray-500">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -268,93 +268,95 @@ function App(): React.ReactElement {
           </div>
         </div>
 
-        {/* Input Container with modern styling */}
-        <div className="border-t border-gray-200 bg-white">
-          {messages.length > 0 && (
-            <div className="px-4 py-2 flex justify-end">
-              <button
-                onClick={handleClearChat}
-                className="text-gray-500 hover:text-red-500 text-sm font-medium flex items-center transition-colors duration-200 cursor-pointer"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 mr-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+        <div className="w-full max-w-4xl mx-auto">
+          {/* Input Container with modern styling */}
+          <div className="border-t border-gray-200 bg-white">
+            {messages.length > 0 && (
+              <div className="px-4 py-2 flex justify-end">
+                <button
+                  onClick={handleClearChat}
+                  className="text-gray-500 hover:text-red-500 text-sm font-medium flex items-center transition-colors duration-200 cursor-pointer"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-                Clear conversation
-              </button>
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="p-4">
-            <div className="flex space-x-2 items-center">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your message here..."
-                  className="w-full py-3 px-4 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-gray-800"
-                  disabled={isLoading || streamInProgress}
-                />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  Clear conversation
+                </button>
               </div>
+            )}
+            <form onSubmit={handleSubmit} className="p-3">
+              <div className="flex items-center">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type your message here..."
+                    className="w-full py-3 px-4 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-gray-800"
+                    disabled={isLoading || streamInProgress}
+                  />
+                </div>
 
-              {streamInProgress || isLoading ? (
-                <button
-                  type="button"
-                  onClick={handleCancelStream}
-                  className="bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-6 rounded-full transition-colors duration-200 flex items-center shadow-md"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                {streamInProgress || isLoading ? (
+                  <button
+                    type="button"
+                    onClick={handleCancelStream}
+                    className="bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-6 rounded-full transition-colors duration-200 flex items-center shadow-md"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                  Cancel
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white font-medium py-3 px-6 rounded-full transition-all duration-200 flex items-center shadow-md"
-                  disabled={isLoading || streamInProgress || !input.trim()}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 mr-1"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                    Cancel
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white font-medium py-3 px-6 rounded-full transition-all duration-200 flex items-center shadow-md"
+                    disabled={isLoading || streamInProgress || !input.trim()}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
-                  </svg>
-                  Send
-                </button>
-              )}
-            </div>
-          </form>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 mr-1"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
+                    Send
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
