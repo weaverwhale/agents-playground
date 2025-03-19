@@ -469,9 +469,9 @@ export const useChat = ({ userId }: UseChatProps) => {
   const clearChatHistoryHttp = useCallback(async () => {
     try {
       await axios.delete(`/chat/${userId}`);
-      if (isMounted.current) {
-        setMessages([]);
-      }
+      setMessages([]);
+      setIsLoading(false);
+      setStreamInProgress(false);
     } catch (error) {
       console.error('Error clearing chat history:', error);
     }

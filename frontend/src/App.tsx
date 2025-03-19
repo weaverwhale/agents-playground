@@ -25,23 +25,18 @@ function App(): React.ReactElement {
     clearChatHistoryHttp,
   } = useChat({ userId });
 
-  const {
-    socket,
-    sendChatRequest,
-    clearChatHistory,
-    cancelStream,
-    isConnected,
-  } = useSocket({
-    userId,
-    onStreamUpdate: handleStreamUpdate,
-    onStreamCancelled: handleStreamCancelled,
-    onChatHistory: handleChatHistory,
-    onHistoryCleared: handleHistoryCleared,
-    onError: (error) => {
-      handleError(error);
-      setConnectionError(true);
-    },
-  });
+  const { sendChatRequest, cancelStream, clearChatHistory, isConnected } =
+    useSocket({
+      userId,
+      onStreamUpdate: handleStreamUpdate,
+      onStreamCancelled: handleStreamCancelled,
+      onChatHistory: handleChatHistory,
+      onHistoryCleared: handleHistoryCleared,
+      onError: (error) => {
+        handleError(error);
+        setConnectionError(true);
+      },
+    });
 
   // Reset connection error when socket connects
   useEffect(() => {
@@ -100,12 +95,23 @@ function App(): React.ReactElement {
   };
 
   const handleClearChat = () => {
-    if (isConnected && !connectionError) {
-      clearChatHistory();
-    } else {
-      // Fallback to HTTP
-      clearChatHistoryHttp();
+    // If there's an active stream, cancel it first
+    if (streamInProgress) {
+      if (isConnected && !connectionError) {
+        cancelStream();
+      } else {
+        // Just update the UI state since HTTP fallback doesn't support cancellation
+        handleStreamCancelled();
+      }
     }
+
+    // Try socket first, only fall back to HTTP if needed
+    if (isConnected) {
+      // Clear messages in the UI and then clear on the server
+      clearChatHistory();
+    }
+
+    clearChatHistoryHttp();
   };
 
   const handleCancelStream = () => {
@@ -139,7 +145,7 @@ function App(): React.ReactElement {
               onClick={handleClearChat}
               className="text-red-500 font-bold absolute -top-8 cursor-pointer"
             >
-              {connectionError ? 'Offline Mode' : 'Clear Chat'}
+              {!isConnected ? 'Clear Chat (Offline Mode)' : 'Clear Chat'}
             </p>
           )}
           <div className="flex">
