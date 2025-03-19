@@ -222,58 +222,140 @@ function App(): React.ReactElement {
   };
 
   return (
-    <div className="flex h-full">
-      <div className="chat-container flex-1">
-        <header className="bg-blue-600 text-white p-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">🐳 Agent Chat</h1>
+    <div className="flex flex-col h-full bg-gray-50">
+      <div className="flex-1 flex flex-col mx-auto w-full shadow-2xl bg-white">
+        {/* Header Bar with subtle gradient and modern styling */}
+        <header className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-4 shadow-md">
+          <div className="flex justify-between items-center px-2">
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/10 p-2 rounded-full w-12 h-12 flex items-center justify-center">
+                <span className="text-2xl">🐳</span>
+              </div>
+              <h1 className="text-xl font-bold">Agent Chat</h1>
+            </div>
+            <div className="flex items-center">
+              {!isConnected && (
+                <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full">
+                  Offline Mode
+                </span>
+              )}
+            </div>
+          </div>
         </header>
 
-        <div className="flex flex-1 overflow-hidden">
-          <div className="chat-messages flex flex-col flex-1">
-            {messages.map((message, index) => (
-              <ChatMessage key={index} message={message} userId={userId} />
-            ))}
+        {/* Chat Messages Container with improved spacing */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-5 text-gray-500">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-3xl">💬</span>
+                </div>
+                <h3 className="text-xl font-medium text-gray-700 mb-2">
+                  Welcome to Agent Chat
+                </h3>
+                <p className="max-w-md text-gray-500">
+                  Start a conversation with the AI assistant to get help with
+                  your questions.
+                </p>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <ChatMessage key={index} message={message} userId={userId} />
+              ))
+            )}
             <div ref={messagesEndRef} />
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="chat-input-container relative">
+        {/* Input Container with modern styling */}
+        <div className="border-t border-gray-200 bg-white">
           {messages.length > 0 && (
-            <p
-              onClick={handleClearChat}
-              className="text-red-500 font-bold absolute -top-8 cursor-pointer"
-            >
-              {!isConnected ? 'Clear Chat (Offline Mode)' : 'Clear Chat'}
-            </p>
+            <div className="px-4 py-2 flex justify-end">
+              <button
+                onClick={handleClearChat}
+                className="text-gray-500 hover:text-red-500 text-sm font-medium flex items-center transition-colors duration-200 cursor-pointer"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 mr-1"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                Clear conversation
+              </button>
+            </div>
           )}
-          <div className="flex">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message here..."
-              className="chat-input flex-1 mr-2"
-            />
-            {streamInProgress || isLoading ? (
-              <button
-                type="button"
-                onClick={handleCancelStream}
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mr-2"
-              >
-                Cancel
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                disabled={isLoading || streamInProgress}
-              >
-                {isLoading ? 'Sending...' : 'Send'}
-              </button>
-            )}
-          </div>
-        </form>
+          <form onSubmit={handleSubmit} className="p-4">
+            <div className="flex space-x-2 items-center">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type your message here..."
+                  className="w-full py-3 px-4 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none text-gray-800"
+                  disabled={isLoading || streamInProgress}
+                />
+              </div>
+
+              {streamInProgress || isLoading ? (
+                <button
+                  type="button"
+                  onClick={handleCancelStream}
+                  className="bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-6 rounded-full transition-colors duration-200 flex items-center shadow-md"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white font-medium py-3 px-6 rounded-full transition-all duration-200 flex items-center shadow-md"
+                  disabled={isLoading || streamInProgress || !input.trim()}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
+                  </svg>
+                  Send
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

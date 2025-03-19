@@ -41,90 +41,124 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
   };
 
   const LoadingDots = () => (
-    <div className="flex space-x-2 mt-2">
+    <div className="flex space-x-1 ml-2">
       <div
-        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        className="w-2 h-2 bg-current rounded-full animate-bounce"
         style={{ animationDelay: '0ms' }}
       ></div>
       <div
-        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        className="w-2 h-2 bg-current rounded-full animate-bounce"
         style={{ animationDelay: '150ms' }}
       ></div>
       <div
-        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        className="w-2 h-2 bg-current rounded-full animate-bounce"
         style={{ animationDelay: '300ms' }}
       ></div>
     </div>
   );
 
   return (
-    <div className={`message ${role} flex`}>
-      <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
-        <img
-          src={
-            role === 'user'
-              ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
-              : role === 'system'
+    <div
+      className={`flex items-start ${role === 'user' ? 'justify-end' : 'justify-start'} mb-6`}
+    >
+      {/* For non-user messages, show avatar first */}
+      {role !== 'user' && (
+        <div className="h-9 w-9 rounded-full flex-shrink-0 overflow-hidden shadow-sm mr-3">
+          <img
+            src={
+              role === 'system'
                 ? `https://api.dicebear.com/7.x/bottts/svg?seed=system`
                 : `https://api.dicebear.com/7.x/bottts/svg?seed=assistant`
-          }
-          alt={role}
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <div className="flex-1">
+            }
+            alt={role}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+
+      <div
+        className={`flex flex-col gap-2 ${role === 'user' ? 'order-1' : 'order-2'} max-w-[80%]`}
+      >
         {isToolMessage ? (
           <div
-            className={`tool-message p-2 rounded ${
-              toolStatus === 'completed' ? 'bg-green-50' : 'bg-blue-50'
-            } ${toolStatus === 'completed' ? 'border-l-4 border-green-400' : isPartial ? 'border-l-4 border-blue-400' : ''}`}
+            className={`rounded-lg shadow-sm overflow-hidden inline-block ${
+              toolCompleted
+                ? 'bg-green-50 border-l-4 border-green-400'
+                : 'bg-blue-50 border-l-4 border-blue-400'
+            }`}
           >
-            <p
-              className={`font-medium ${
-                toolStatus === 'completed' ? 'text-green-700' : 'text-blue-700'
-              }`}
-            >
-              {toolStatus === 'completed'
-                ? '✓ Tool completed'
-                : '⚙️ Working with tool...'}
-            </p>
-            <p className="text-sm text-gray-600">
-              {toolName ? (
-                <span className="font-semibold capitalize">
-                  {formatToolName(toolName)}
-                </span>
-              ) : (
-                'AI Assistant'
-              )}
-              {toolStatus === 'completed'
-                ? ' finished processing'
-                : ' is processing your request'}
-            </p>
+            <div className="px-4 py-2 bg-opacity-10">
+              <div
+                className={`text-sm font-medium ${
+                  toolCompleted ? 'text-green-700' : 'text-blue-700'
+                } flex items-center`}
+              >
+                {toolCompleted ? '✓ Tool completed' : '⚙️ Working with tool...'}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                {toolName ? (
+                  <span className="font-medium capitalize">
+                    {formatToolName(toolName)}
+                  </span>
+                ) : (
+                  'AI Assistant'
+                )}
+                {toolCompleted
+                  ? ' finished processing'
+                  : ' is processing your request'}
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="message-content markdown-content">
-            <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
+          <div
+            className={`message relative rounded-2xl shadow-sm inline-block
+              ${
+                role === 'user'
+                  ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-r-4 border-blue-400'
+                  : role === 'system'
+                    ? 'bg-amber-50 border-l-4 border-amber-400'
+                    : 'bg-gray-100 border-l-4 border-gray-300'
+              } 
+              px-4 py-3
+            `}
+          >
+            <div
+              className={`message-content markdown-content ${role === 'user' ? 'text-white' : 'text-gray-800'} break-words`}
             >
-              {content}
-            </ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
 
         {timestamp && !isPartial && (
-          <div className="text-xs text-gray-500 mt-1">{timestamp}</div>
+          <div className="text-xs text-gray-400 mt-1 ml-2">{timestamp}</div>
         )}
 
         {isPartial && !isToolMessage && (
           <div
-            className={`text-xs ${getToolStatusColor()} mt-1 flex items-center`}
+            className={`text-xs ${getToolStatusColor()} mt-1 ml-2 flex items-center`}
           >
-            <span className="mr-2">{getToolStatusText()}</span>
+            <span>{getToolStatusText()}</span>
             <LoadingDots />
           </div>
         )}
       </div>
+
+      {/* For user messages, show avatar last */}
+      {role === 'user' && (
+        <div className="h-9 w-9 rounded-full flex-shrink-0 overflow-hidden shadow-sm ml-3 order-2">
+          <img
+            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`}
+            alt={role}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
     </div>
   );
 };
