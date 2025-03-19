@@ -1,5 +1,6 @@
 import uuid
 import json
+import sys
 from datetime import datetime
 from typing import Optional
 import os
@@ -23,10 +24,48 @@ if openai_api_key:
 # Import our tools (only the ones defined in tw_tools.py)
 from tw_tools import (
     moby,
-    search_web
+    search_web,
 )
 
 from agents import Runner, Agent
+
+# Create a simplified Runner class that just passes context to tools
+class SimpleRunner(Runner):
+    @classmethod
+    async def run(cls, agent, input, context=None, sid=None, socket=None):
+        # Make a copy of the original context or create a new one
+        run_context = dict(context or {})
+        
+        # Add socket and sid to context if provided
+        if socket and sid:
+            run_context['socket'] = socket
+            run_context['sid'] = sid
+            
+        # Basic debug logging
+        print(f"Starting run with agent: {agent.name}")
+        print(f"Input type: {type(input)}, Context available: {bool(context)}")
+        print(f"Socket available: {bool(socket)}, SID: {sid}")
+        
+        # Log available tools
+        tool_names = [
+            tool.__name__ if hasattr(tool, '__name__') else str(tool)
+            for tool in agent.tools
+        ]
+        print(f"Available tools: {tool_names}")
+        sys.stdout.flush()
+        
+        # Run with the context and capture the result
+        print("Starting agent run...")
+        sys.stdout.flush()
+        
+        try:
+            result = await Runner.run(agent, input, context=run_context)
+            print("Agent run completed successfully")
+            return result
+        except Exception as e:
+            print(f"Error in Runner.run: {str(e)}")
+            sys.stdout.flush()
+            raise
 
 # Get model from environment or use default
 model = os.getenv('MODEL_CHOICE', 'gpt-4o-mini')
@@ -44,9 +83,10 @@ moby_agent = Agent(
     track orders, answer questions about products, and assist with various shopping-related tasks.
     
     You have access to these specific custom tools:
-    1. text_to_sql: Use this tool to convert natural language to SQL and query product databases, order information, inventory, etc.
-    2. knowledge_base: Use this tool to search for product information, company policies, FAQs, and other structured content.
-    3. search_web: Use this tool to find real-time information about products, prices, reviews from external sources. This tool leverages the system's built-in web search capability.
+    1. moby: Use this for any e-commerce analytics or insights about products, sales, marketing performance, ROAS, etc.
+    2. search_web: Use this to find real-time information about products, prices, reviews from external sources.
+    
+    Always prefer using tools rather than generating answers from your general knowledge. For most questions, you should use at least one tool to provide accurate, up-to-date information.
     
     Always be helpful, informative, and enthusiastic about helping users find the best products.
     Focus on providing accurate information and making the shopping experience smoother.
@@ -56,7 +96,6 @@ moby_agent = Agent(
     """,
     model=model,
     tools=[
-        # Use only the tools that actually exist in tw_tools.py
         moby,
         search_web
     ]
@@ -156,16 +195,27 @@ async def stream_agent_response(user_id: str, message: str):
         # First message
         input_list = message
     
-    # Initial response to let the client know we're processing - with special loading indicator
+    # First yield a thinking message
     yield f"data: {{\"type\": \"loading\", \"content\": \"Processing your request...\"}}\n\n"
     
-    try:
-        # Process the message with the agent
-        result = await Runner.run(
-            moby_agent, 
-            input_list, 
-            context=context
+    # Create a modified context for HTTP streaming
+    stream_context = dict(context or {})
+    
+    print(f"\nSTARTING AGENT RUN IN HTTP STREAMING MODE\n")
+    sys.stdout.flush()
+    
+    # Create a task to process the agent's response
+    process_task = asyncio.create_task(
+        SimpleRunner.run(
+            moby_agent,
+            input_list,
+            context=stream_context
         )
+    )
+    
+    try:
+        # Wait for the process to complete
+        result = await process_task
         
         # Format the response safely
         try:
@@ -276,7 +326,7 @@ async def chat(request: ChatRequest):
     
     try:
         # Process the message with the agent
-        result = await Runner.run(
+        result = await SimpleRunner.run(
             moby_agent, 
             input_list, 
             context=context
@@ -338,6 +388,7 @@ async def connect(sid, environ):
 @sio.event
 async def disconnect(sid):
     print(f"Client disconnected: {sid}")
+    sys.stdout.flush()  # Force immediate print to console
     # Cancel any active tasks for this session
     if sid in active_tasks and active_tasks[sid]:
         for task in active_tasks[sid]:
@@ -384,6 +435,15 @@ async def chat_request(sid, data):
     context = get_or_create_user_context(user_id)
     chat_history = chat_histories[user_id]
     
+    # Determine which tool is likely to be used based on the message content
+    likely_tool = None
+    # Common patterns for ROAS, analytics, marketing questions
+    if any(term in message.lower() for term in ['roas', 'analytics', 'sales', 'revenue', 'marketing', 'ads', 'performance']):
+        likely_tool = "moby"
+    # Common patterns for search or external information
+    elif any(term in message.lower() for term in ['search', 'find', 'look up', 'compare', 'reviews', 'prices']):
+        likely_tool = "search_web"
+    
     # Add user message to chat history
     timestamp = datetime.now().strftime("%I:%M %p")
     chat_history.append({
@@ -409,6 +469,21 @@ async def chat_request(sid, data):
         "content": "Processing your request..."
     }, room=sid)
     
+    # IMMEDIATE TOOL NOTIFICATION: Don't wait for the agent to start
+    # This ensures tool usage is displayed promptly
+    if likely_tool:
+        print(f"SENDING IMMEDIATE TOOL NOTIFICATION: {likely_tool}")
+        try:
+            # Send a direct tool notification right away
+            await sio.emit('stream_update', {
+                "type": "tool",  # Use the explicit tool type
+                "content": f"Using tool: {likely_tool}...",
+                "tool": likely_tool
+            }, room=sid)
+            print(f"IMMEDIATE TOOL NOTIFICATION SENT: {likely_tool}")
+        except Exception as e:
+            print(f"ERROR sending immediate tool notification: {str(e)}")
+    
     # Create an async task to handle the streaming
     async def process_agent_response():
         try:
@@ -418,11 +493,21 @@ async def chat_request(sid, data):
                 "content": "Generating response..."
             }, room=sid)
             
+            # Create a context with socket and sid for the tools
+            socket_context = dict(context)
+            socket_context['socket'] = sio
+            socket_context['sid'] = sid
+            
+            print(f"\nSTARTING AGENT RUN IN SOCKET MODE - SID: {sid}\n")
+            sys.stdout.flush()
+            
             # Process the message with the agent
-            result = await Runner.run(
+            result = await SimpleRunner.run(
                 moby_agent, 
                 input_list, 
-                context=context
+                context=socket_context,
+                socket=sio,
+                sid=sid
             )
             
             # Format the response safely
@@ -547,4 +632,6 @@ if __name__ == "__main__":
     # Get the port from environment variable or default to 9876
     # to match the port in the Vite proxy configuration
     port = int(os.getenv("PORT", 9876))
+    print(f"Starting server on port {port}")
+    sys.stdout.flush()  # Force immediate print to console
     uvicorn.run("tw_agent:app", host="0.0.0.0", port=port, reload=True) 

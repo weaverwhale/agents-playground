@@ -109,3 +109,36 @@ code {
 .markdown-content strong {
   font-weight: 600;
 }
+
+/* Math expression styles */
+.markdown-content .math {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 1rem 0;
+}
+
+.markdown-content .math-inline {
+  display: inline-block;
+  margin: 0 0.25rem;
+}
+
+/* Ensure code blocks are properly styled */
+.markdown-content pre {
+  background-color: #f5f5f5;
+  padding: 0.75rem;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.markdown-content code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+}

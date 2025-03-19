@@ -4,7 +4,7 @@
   "description": "Agent Chat with FastAPI backend and React frontend",
   "main": "index.ts",
   "scripts": {
-    "start:backend": "cd backend && PORT=9876 python3.9 tw_agent.py",
+    "start:backend": "cd backend && PORT=9876 python3.9 -u tw_agent.py",
     "install:backend": "cd backend && pip3 install -r requirements.txt",
     "start:frontend": "cd frontend && npm run dev",
     "build:frontend": "cd frontend && npm run build",

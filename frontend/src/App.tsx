@@ -10,6 +10,8 @@ interface Message {
   content: string;
   timestamp: string;
   isPartial?: boolean;
+  isTool?: boolean;
+  tool?: string;
 }
 
 function App(): React.ReactElement {
@@ -38,74 +40,227 @@ function App(): React.ReactElement {
 
     // Socket.IO event listeners
     socket.on('connect', () => {
-      console.log('Connected to Socket.IO server');
+      console.log('🟢 Connected to Socket.IO server');
     });
 
     socket.on('disconnect', () => {
-      console.log('Disconnected from Socket.IO server');
+      console.log('🔴 Disconnected from Socket.IO server');
     });
 
     socket.on('stream_update', (data) => {
-      // Handle streaming updates from the server
-      if (data.type === 'loading') {
-        // Update with loading message
+      // Global logging for ALL stream updates
+      console.log('📩 STREAM UPDATE RECEIVED:', data);
+
+      if (data.type === 'tool') {
+        console.warn('🧰 DIRECT TOOL TYPE DETECTED:', data);
+
+        // Replace any existing loading messages with our tool message
         setMessages((prevMessages) => {
-          const lastMessage = prevMessages[prevMessages.length - 1];
-          if (lastMessage?.role === 'assistant' && lastMessage.isPartial) {
-            // Update existing loading message
-            return prevMessages.map((msg, index) =>
-              index === prevMessages.length - 1
-                ? { ...msg, content: data.content, isPartial: true }
-                : msg
+          // Keep all messages except loading messages
+          const nonLoadingMessages = prevMessages.filter(
+            (msg) => !(msg.isPartial && msg.role === 'assistant' && !msg.isTool)
+          );
+
+          // Find if we already have this exact tool message
+          const existingToolMessage = nonLoadingMessages.find(
+            (msg) => msg.isTool && msg.tool === data.tool && msg.isPartial
+          );
+
+          // If we already have this tool message, don't add a duplicate
+          if (existingToolMessage) {
+            console.log(
+              `⚠️ Tool message for ${data.tool} already exists, not duplicating`
             );
-          } else {
-            // Add new loading message
-            return [
-              ...prevMessages,
-              {
-                id: uuidv4(),
-                role: 'assistant',
-                content: data.content,
-                timestamp: new Date().toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }),
-                isPartial: true,
-              },
-            ];
+            return nonLoadingMessages;
           }
+
+          // Add the new tool message
+          return [
+            ...nonLoadingMessages,
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: data.content,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              isPartial: true,
+              isTool: true,
+              tool: data.tool,
+            },
+          ];
         });
 
         setStreamInProgress(true);
-      } else if (data.type === 'partial') {
-        // Update with partial content
+        return; // Exit early after handling tool notification
+      }
+
+      // Enhanced debugging for tool updates with more thorough checks
+      const isTool =
+        data.type === 'tool' || // Explicit tool type
+        (data.type === 'loading' &&
+          typeof data.content === 'string' &&
+          data.content.toLowerCase().startsWith('using tool:'));
+
+      // Check if this is a tool usage notification
+      if (
+        data.type === 'loading' &&
+        typeof data.content === 'string' &&
+        data.content.toLowerCase().startsWith('using tool:')
+      ) {
+        console.log('🛠️ TOOL USAGE DETECTED IN LOADING MESSAGE:', data.content);
+
+        // Extract tool name from content
+        const toolRegex = /using tool:?\s*([^.:\n]+?)(?:\.{3}|[.:]|\s*$)/i;
+        const match = data.content.match(toolRegex);
+        const extractedTool = match && match[1] ? match[1].trim() : undefined;
+
+        // Replace any existing loading messages with our tool message
         setMessages((prevMessages) => {
-          const lastMessage = prevMessages[prevMessages.length - 1];
-          if (lastMessage?.role === 'assistant' && lastMessage.isPartial) {
-            // Update existing message with partial content
-            return prevMessages.map((msg, index) =>
-              index === prevMessages.length - 1
-                ? { ...msg, content: data.content, isPartial: true }
-                : msg
+          // Keep all messages except loading messages
+          const nonLoadingMessages = prevMessages.filter(
+            (msg) => !(msg.isPartial && msg.role === 'assistant' && !msg.isTool)
+          );
+
+          // Find if we already have this exact tool message
+          const existingToolMessage = nonLoadingMessages.find(
+            (msg) => msg.isTool && msg.tool === extractedTool && msg.isPartial
+          );
+
+          // If we already have this tool message, don't add a duplicate
+          if (existingToolMessage) {
+            console.log(
+              `⚠️ Tool message for ${extractedTool} already exists, not duplicating`
             );
+            return nonLoadingMessages;
           }
-          return prevMessages;
+
+          // Add the new tool message
+          return [
+            ...nonLoadingMessages,
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: data.content,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              isPartial: true,
+              isTool: true,
+              tool: extractedTool,
+            },
+          ];
         });
 
         setStreamInProgress(true);
-      } else if (data.type === 'content' || data.type === 'error') {
-        // Final content
-        setMessages((prevMessages) => {
-          const lastMessage = prevMessages[prevMessages.length - 1];
-          if (lastMessage?.role === 'assistant' && lastMessage.isPartial) {
-            // Update the last message with the final content
-            return prevMessages.map((msg, index) =>
-              index === prevMessages.length - 1
-                ? { ...msg, content: data.content, isPartial: false }
-                : msg
+        return; // Exit early after handling tool notification
+      }
+
+      // Handle other loading messages
+      else if (data.type === 'loading') {
+        // Skip "Generating response..." if we have active tool messages
+        if (data.content === 'Generating response...') {
+          const hasActiveToolMessages = messages.some(
+            (msg) => msg.isTool && msg.isPartial
+          );
+          if (hasActiveToolMessages) {
+            console.log(
+              '⏭️ Skipping "Generating response..." message as tools are active'
             );
+            return; // Skip this generic loading message if tools are active
           }
-          return prevMessages;
+        }
+
+        // For loading messages, replace any existing loading message
+        setMessages((prevMessages) => {
+          // Filter out any partial messages (loading messages)
+          const messagesWithoutPartials = prevMessages.filter(
+            (msg) => !(msg.isPartial && msg.role === 'assistant' && !msg.isTool)
+          );
+
+          // Keep tool messages that are still processing
+          const toolMessages = prevMessages.filter(
+            (msg) => msg.isPartial && msg.isTool
+          );
+
+          // If we have tool messages, don't add a new loading message
+          if (toolMessages.length > 0) {
+            console.log('⏭️ Keeping tool messages, not adding generic loading');
+            return prevMessages;
+          }
+
+          // Add new loading message
+          return [
+            ...messagesWithoutPartials,
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: data.content,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              isPartial: true,
+            },
+          ];
+        });
+
+        setStreamInProgress(true);
+      }
+
+      // Handle partial content updates
+      else if (data.type === 'partial') {
+        // When we get partial content, it means tools are done and we should show results
+        setMessages((prevMessages) => {
+          // Keep all complete messages
+          const completeMessages = prevMessages.filter((msg) => !msg.isPartial);
+
+          // Remove all tool messages now that we're getting actual content
+          // This ensures tool messages are removed as soon as the response starts flowing
+
+          // Create our new partial message with the updated content
+          const newPartialMessage: Message = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: data.content,
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            isPartial: true,
+          };
+
+          // Return only complete messages and the new partial message
+          // Tool messages are intentionally not kept
+          return [...completeMessages, newPartialMessage];
+        });
+
+        setStreamInProgress(true);
+      }
+
+      // Handle final content
+      else if (data.type === 'content' || data.type === 'error') {
+        // Final content replaces all partial messages including tool messages
+        setMessages((prevMessages) => {
+          // Keep only complete messages - remove all partial messages including tools
+          const completeMessages = prevMessages.filter((msg) => !msg.isPartial);
+
+          // Add the final message
+          return [
+            ...completeMessages,
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: data.content,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              isPartial: false,
+            },
+          ];
         });
 
         setIsLoading(false);
@@ -391,7 +546,6 @@ function App(): React.ReactElement {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message here..."
               className="chat-input flex-1 mr-2"
-              disabled={isLoading}
             />
             {streamInProgress ? (
               <button
@@ -401,14 +555,15 @@ function App(): React.ReactElement {
               >
                 Cancel
               </button>
-            ) : null}
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Sending...' : 'Send'}
-            </button>
+            ) : (
+              <button
+                type="submit"
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Sending...' : 'Send'}
+              </button>
+            )}
           </div>
         </form>
       </div>

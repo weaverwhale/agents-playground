@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 interface MessageProps {
   message: {
@@ -7,11 +10,60 @@ interface MessageProps {
     content: string;
     timestamp?: string;
     isPartial?: boolean;
+    isTool?: boolean;
+    tool?: string; // Add tool name if available directly
   };
 }
 
 const ChatMessage: React.FC<MessageProps> = ({ message }) => {
-  const { role, content, timestamp, isPartial } = message;
+  const { role, content, timestamp, isPartial, isTool, tool } = message;
+
+  // Directly log every partial message for debugging
+  useEffect(() => {
+    if (isPartial) {
+      console.log('🔍 PARTIAL MESSAGE:', content);
+
+      // Check for tool usage
+      if (content && content.toLowerCase().includes('tool')) {
+        console.log('🛠️ TOOL MESSAGE DETECTED:', content);
+
+        // Try to extract tool name with regex - more permissive pattern
+        const toolRegex = /using tool:?\s*([^.:\n]+?)(?:\.{3}|[.:]|\s*$)/i;
+        const matchResult = content.match(toolRegex);
+        console.log('📋 REGEX MATCH RESULT:', matchResult);
+      }
+    }
+
+    // Always log tool messages
+    if (isTool) {
+      console.log('🔧 RENDERING TOOL MESSAGE:', {
+        content,
+        tool,
+        isPartial,
+      });
+    }
+  }, [isPartial, content, isTool, tool]);
+
+  // Extract tool name from content if present with more robust detection
+  // Make the regex more permissive to catch different tool name formats
+  const toolRegex = /using tool:?\s*([^.:\n]+?)(?:\.{3}|[.:]|\s*$)/i;
+  const matchResult = content.match(toolRegex);
+
+  // First try to use the tool property, if not available extract from content
+  let toolName = tool || '';
+  if (!toolName && matchResult && matchResult[1]) {
+    toolName = matchResult[1].trim();
+  }
+
+  // Determine if this is a tool message (either by flag or content)
+  const isToolMessage = isTool || !!matchResult;
+
+  // Debug logs for tool detection
+  useEffect(() => {
+    if (isToolMessage) {
+      console.log('🧰 TOOL DETECTED:', toolName || 'Unknown tool');
+    }
+  }, [isToolMessage, toolName]);
 
   // Loading dots animation component
   const LoadingDots = () => (
@@ -47,15 +99,28 @@ const ChatMessage: React.FC<MessageProps> = ({ message }) => {
         />
       </div>
       <div className="flex-1">
-        <div className="message-content markdown-content">
-          <ReactMarkdown>{content}</ReactMarkdown>
-        </div>
-        {timestamp && (
+        {isToolMessage ? (
+          <p>Working with tools...</p>
+        ) : (
+          <div className="message-content markdown-content">
+            <ReactMarkdown
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {timestamp && !isPartial && (
           <div className="text-xs text-gray-500 mt-1">{timestamp}</div>
         )}
+
         {isPartial && (
           <div className="text-xs text-blue-500 mt-1 flex items-center">
-            <span className="mr-2">AI is thinking</span>
+            <span className="mr-2">
+              {isToolMessage ? `Asking ${toolName}` : 'AI is thinking'}
+            </span>
             <LoadingDots />
           </div>
         )}

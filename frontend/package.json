@@ -13,10 +13,13 @@
     "@tailwindcss/vite": "^4.0.14",
     "autoprefixer": "^10.4.18",
     "axios": "^1.6.7",
+    "katex": "^0.16.21",
     "postcss": "^8.4.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.0.14",
     "uuid": "^9.0.1"
