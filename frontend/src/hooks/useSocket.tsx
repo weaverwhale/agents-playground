@@ -15,6 +15,7 @@ export const useSocket = ({
   onError,
 }: UseSocketOptions) => {
   const socketRef = useRef<Socket | null>(null);
+  const hasRequestedHistoryRef = useRef(false);
 
   useEffect(() => {
     // Only create a socket if it doesn't exist yet
@@ -46,12 +47,15 @@ export const useSocket = ({
     socket.on('history_cleared', onHistoryCleared);
     socket.on('error', onError);
 
-    // Load chat history only if we have a userId and the socket is connected
-    if (userId && socket.connected) {
+    // Load chat history only if we have a userId, the socket is connected,
+    // and we haven't already requested history
+    if (userId && socket.connected && !hasRequestedHistoryRef.current) {
+      hasRequestedHistoryRef.current = true;
       socket.emit('get_chat_history', { user_id: userId });
-    } else if (userId) {
+    } else if (userId && !hasRequestedHistoryRef.current) {
       // Set up a one-time listener to get chat history once connected
       const onConnect = () => {
+        hasRequestedHistoryRef.current = true;
         socket.emit('get_chat_history', { user_id: userId });
         socket.off('connect', onConnect); // Remove the listener after use
       };

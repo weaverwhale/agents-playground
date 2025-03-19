@@ -22,7 +22,8 @@ def log(message, level='INFO'):
         'DEBUG': 0,
         'INFO': 1,
         'WARNING': 2,
-        'ERROR': 3
+        'ERROR': 3,
+        'GLOBAL': 4
     }
     
     # Only print if the message's level is at least as important as the global log level

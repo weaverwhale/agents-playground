@@ -1,0 +1,16 @@
+services:
+  # Production mode with static frontend build
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '9876:9876' # Backend port only (frontend is served as static files)
+    environment:
+      - NODE_ENV=production
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MODEL_CHOICE=${MODEL_CHOICE:-gpt-4o-mini}
+      - PORT=9876
+    container_name: agents-playground
+    restart: unless-stopped

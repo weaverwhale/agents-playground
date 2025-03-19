@@ -9,11 +9,13 @@ interface UseChatProps {
 }
 
 export const useChat = ({ userId }: UseChatProps) => {
+  const isLoadingHistoryRef = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isMounted = useRef(true);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [streamInProgress, setStreamInProgress] = useState<boolean>(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isMounted = useRef(true);
 
   // Set isMounted to false when component unmounts
   useEffect(() => {
@@ -323,7 +325,11 @@ export const useChat = ({ userId }: UseChatProps) => {
 
   // Load chat history using HTTP fallback
   const loadChatHistoryHttp = useCallback(async () => {
+    // Prevent multiple simultaneous loading requests
+    if (isLoadingHistoryRef.current) return;
+
     try {
+      isLoadingHistoryRef.current = true;
       const response = await axios.get(`/chat/${userId}/history`);
       if (
         response.data.messages &&
@@ -334,6 +340,8 @@ export const useChat = ({ userId }: UseChatProps) => {
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
+    } finally {
+      isLoadingHistoryRef.current = false;
     }
   }, [userId]);
 

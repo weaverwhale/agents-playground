@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ChatMessage from './components/ChatMessage';
 import { useUserId } from './hooks/useUserId';
 import { useChat } from './hooks/useChat';
@@ -6,6 +6,7 @@ import { useSocket } from './hooks/useSocket';
 import { httpFallback } from './utils/httpFallback';
 
 function App(): React.ReactElement {
+  const hasLoadedHistoryRef = useRef(false);
   const [input, setInput] = useState<string>('');
   const [connectionError, setConnectionError] = useState<boolean>(false);
   const userId = useUserId();
@@ -47,8 +48,17 @@ function App(): React.ReactElement {
 
   // Load chat history with HTTP fallback if socket connection fails
   useEffect(() => {
-    // If no userId or connection is working, do nothing
-    if (!userId || (isConnected && !connectionError)) return;
+    // If no userId or already loaded history, do nothing
+    if (!userId || hasLoadedHistoryRef.current) return;
+
+    // Mark as loaded to prevent further attempts
+    hasLoadedHistoryRef.current = true;
+
+    // If connected via socket, we don't need to do anything
+    // as the socket will handle loading the history
+    if (isConnected && !connectionError) {
+      return;
+    }
 
     // If there's a connection issue, try the HTTP fallback
     if (connectionError) {
