@@ -11,6 +11,12 @@ function App(): React.ReactElement {
   const [connectionError, setConnectionError] = useState<boolean>(false);
   const userId = useUserId();
 
+  // Reset the hasLoadedHistoryRef when the component mounts
+  // This ensures we always try to load history on a fresh mount/page refresh
+  useEffect(() => {
+    hasLoadedHistoryRef.current = false;
+  }, []);
+
   const {
     messages,
     isLoading,
@@ -51,18 +57,23 @@ function App(): React.ReactElement {
     setStreamInProgress,
   ]);
 
-  const { sendChatRequest, cancelStream, clearChatHistory, isConnected } =
-    useSocket({
-      userId,
-      onStreamUpdate: handleStreamUpdate,
-      onStreamCancelled: handleStreamCancelled,
-      onChatHistory: handleChatHistory,
-      onHistoryCleared: handleHistoryCleared,
-      onError: (error) => {
-        handleError(error);
-        setConnectionError(true);
-      },
-    });
+  const {
+    sendChatRequest,
+    cancelStream,
+    clearChatHistory,
+    isConnected,
+    getChatHistory,
+  } = useSocket({
+    userId,
+    onStreamUpdate: handleStreamUpdate,
+    onStreamCancelled: handleStreamCancelled,
+    onChatHistory: handleChatHistory,
+    onHistoryCleared: handleHistoryCleared,
+    onError: (error) => {
+      handleError(error);
+      setConnectionError(true);
+    },
+  });
 
   // Reset connection error when socket connects
   useEffect(() => {
@@ -73,31 +84,49 @@ function App(): React.ReactElement {
 
   // Load chat history with HTTP fallback if socket connection fails
   useEffect(() => {
-    // If no userId or already loaded history, do nothing
-    if (!userId || hasLoadedHistoryRef.current) return;
+    // Don't attempt if we don't have a userId yet
+    if (!userId) return;
 
-    // Mark as loaded to prevent further attempts
-    hasLoadedHistoryRef.current = true;
-
-    // If connected via socket, we don't need to do anything
-    // as the socket will handle loading the history
-    if (isConnected && !connectionError) {
+    // If we already have messages, don't reload
+    if (messages.length > 0) {
+      hasLoadedHistoryRef.current = true;
       return;
     }
 
-    // If there's a connection issue, try the HTTP fallback
-    if (connectionError) {
-      console.log('Using HTTP fallback for chat history');
-      httpFallback
-        .loadChatHistory(userId)
-        .then((messages) => {
-          if (messages.length > 0) {
-            handleChatHistory({ messages });
-          }
-        })
-        .catch((err) => console.error('HTTP fallback failed:', err));
+    // Check if we need to load history
+    if (!hasLoadedHistoryRef.current) {
+      // Mark as loaded to prevent further attempts
+      hasLoadedHistoryRef.current = true;
+
+      // If connected via socket, explicitly request history
+      if (isConnected && !connectionError) {
+        console.log('Requesting chat history via socket');
+        // Force a request for history
+        getChatHistory();
+        return;
+      }
+
+      // If there's a connection issue, try the HTTP fallback
+      if (connectionError || !isConnected) {
+        console.log('Using HTTP fallback for chat history');
+        httpFallback
+          .loadChatHistory(userId)
+          .then((historyMessages) => {
+            if (historyMessages.length > 0) {
+              handleChatHistory({ messages: historyMessages });
+            }
+          })
+          .catch((err) => console.error('HTTP fallback failed:', err));
+      }
     }
-  }, [userId, connectionError, isConnected, handleChatHistory]);
+  }, [
+    userId,
+    connectionError,
+    isConnected,
+    handleChatHistory,
+    messages.length,
+    getChatHistory,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();

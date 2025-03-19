@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 /**
  * Format a date as a time string (HH:MM)
  */
@@ -26,4 +28,22 @@ export const formatToolName = (toolName: string): string => {
     return 'Moby';
   }
   return toolName.replace(/_/g, ' ');
+};
+
+/**
+ * Format a message for display or consistent data structure
+ * This ensures all messages conform to the Message interface
+ */
+export const formatMessage = (message: any) => {
+  return {
+    id: message.id || uuidv4(), // Assign ID if missing
+    role: message.role,
+    content: message.content,
+    timestamp: message.timestamp || formatTime(),
+    isPartial: message.isPartial || false,
+    isTool: message.isTool || false,
+    tool: message.tool || undefined,
+    toolStatus: message.toolStatus || undefined,
+    callId: message.callId || null,
+  };
 };

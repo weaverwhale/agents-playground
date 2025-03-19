@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { Message } from '../types';
-import { formatTime } from '../utils/formatters';
+import { formatTime, formatMessage } from '../utils/formatters';
 
 interface UseChatProps {
   userId: string;
@@ -17,8 +17,13 @@ export const useChat = ({ userId }: UseChatProps) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [streamInProgress, setStreamInProgress] = useState<boolean>(false);
 
-  // Set isMounted to false when component unmounts
+  // Ensure isMounted is set to true when component mounts
+  // and set to false when component unmounts
   useEffect(() => {
+    // Set to true on mount
+    isMounted.current = true;
+
+    // Set to false on unmount
     return () => {
       setIsLoading(false);
       setStreamInProgress(false);
@@ -524,8 +529,19 @@ export const useChat = ({ userId }: UseChatProps) => {
 
   // Handler for chat history
   const handleChatHistory = useCallback((data: any) => {
+    console.log('Received chat history:', data);
     if (data.messages && data.messages.length > 0 && isMounted.current) {
-      setMessages(data.messages);
+      console.log(`Setting ${data.messages.length} messages from history`);
+      // Format messages to ensure they have all required properties
+      const formattedMessages = data.messages.map((msg: any) =>
+        formatMessage(msg)
+      );
+      setMessages(formattedMessages);
+    } else {
+      console.log('No messages in chat history or component not mounted', {
+        hasMessages: data.messages && data.messages.length > 0,
+        isMounted: isMounted.current,
+      });
     }
   }, []);
 
@@ -644,7 +660,11 @@ export const useChat = ({ userId }: UseChatProps) => {
         response.data.messages.length > 0 &&
         isMounted.current
       ) {
-        setMessages(response.data.messages);
+        // Format messages to ensure they have all required properties
+        const formattedMessages = response.data.messages.map((msg: any) =>
+          formatMessage(msg)
+        );
+        setMessages(formattedMessages);
       }
     } catch (error) {
       console.error('Error loading chat history:', error);

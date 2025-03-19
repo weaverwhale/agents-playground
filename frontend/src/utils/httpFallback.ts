@@ -1,5 +1,7 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 import { Message } from '../types';
+import { formatMessage } from './formatters';
 
 /**
  * HTTP fallback for chat operations when Socket.IO is not available
@@ -30,13 +32,19 @@ export const httpFallback = {
    */
   async loadChatHistory(userId: string): Promise<Message[]> {
     try {
+      console.log(`Loading chat history via HTTP for user ${userId}`);
       const response = await axios.get(`/chat/${userId}/history`);
       if (response.data.messages && response.data.messages.length > 0) {
-        return response.data.messages;
+        console.log(
+          `HTTP fallback returned ${response.data.messages.length} messages`
+        );
+        // Format messages to match interface requirements
+        return response.data.messages.map((msg: any) => formatMessage(msg));
       }
+      console.log('HTTP fallback returned no messages');
       return [];
     } catch (error) {
-      console.error('Error loading chat history:', error);
+      console.error('Error loading chat history via HTTP:', error);
       return [];
     }
   },

@@ -1,10 +1,7 @@
-import { useEffect, useRef } from 'react';
-import io, { Socket } from 'socket.io-client';
+import { useEffect, useRef, useState } from 'react';
+import { Socket } from 'socket.io-client';
 import { UseSocketOptions } from '../types';
-
-// Create a singleton socket instance outside of the component
-// This ensures we don't create multiple connections
-let socketInstance: Socket | null = null;
+import socketManager from '../utils/socketManager';
 
 export const useSocket = ({
   userId,
@@ -16,64 +13,60 @@ export const useSocket = ({
 }: UseSocketOptions) => {
   const socketRef = useRef<Socket | null>(null);
   const hasRequestedHistoryRef = useRef(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Only create a socket if it doesn't exist yet
-    if (!socketInstance) {
-      socketInstance = io(window.location.origin, {
-        reconnectionAttempts: 5, // Limit reconnection attempts
-        reconnectionDelay: 1000, // Start with a 1 second delay
-        reconnectionDelayMax: 5000, // Maximum delay between reconnections
-        timeout: 20000, // Connection timeout
-      });
+    // Get the socket from the socket manager
+    const socket = socketManager.getSocket();
+    socketRef.current = socket;
+
+    // Register this user with the socket manager
+    if (userId) {
+      socketManager.registerUser(userId);
     }
 
-    socketRef.current = socketInstance;
+    // Set up connection listener
+    const connectionListener = (connected: boolean) => {
+      setIsConnected(connected);
 
-    const socket = socketRef.current;
+      // If we just connected and have a userId, request history
+      if (connected && userId && !hasRequestedHistoryRef.current) {
+        hasRequestedHistoryRef.current = true;
+        socket.emit('get_chat_history', { user_id: userId });
+      }
+    };
 
-    // Set up the event handlers
-    socket.on('connect', () => {
-      console.log('Connected to Socket.IO server');
-    });
+    socketManager.addConnectionListener(connectionListener);
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from Socket.IO server');
-    });
-
+    // Set up event handlers
     socket.on('stream_update', onStreamUpdate);
     socket.on('stream_cancelled', onStreamCancelled);
     socket.on('chat_history', onChatHistory);
     socket.on('history_cleared', onHistoryCleared);
     socket.on('error', onError);
 
-    // Load chat history only if we have a userId, the socket is connected,
-    // and we haven't already requested history
+    // Request history if needed
     if (userId && socket.connected && !hasRequestedHistoryRef.current) {
       hasRequestedHistoryRef.current = true;
       socket.emit('get_chat_history', { user_id: userId });
-    } else if (userId && !hasRequestedHistoryRef.current) {
-      // Set up a one-time listener to get chat history once connected
-      const onConnect = () => {
-        hasRequestedHistoryRef.current = true;
-        socket.emit('get_chat_history', { user_id: userId });
-        socket.off('connect', onConnect); // Remove the listener after use
-      };
-
-      socket.on('connect', onConnect);
     }
 
-    // Cleanup function to remove event listeners on unmount
+    // Cleanup function
     return () => {
+      // Remove all event listeners
       socket.off('stream_update', onStreamUpdate);
       socket.off('stream_cancelled', onStreamCancelled);
       socket.off('chat_history', onChatHistory);
       socket.off('history_cleared', onHistoryCleared);
       socket.off('error', onError);
 
-      // Note: We don't close the socket on component unmount
-      // Instead, we keep it alive for the entire app lifecycle
-      // This helps prevent the connect/disconnect loop
+      // Remove connection listener
+      socketManager.removeConnectionListener(connectionListener);
+
+      // Unregister user when component unmounts
+      if (userId) {
+        socketManager.unregisterUser(userId);
+      }
     };
   }, [
     userId,
@@ -96,10 +89,15 @@ export const useSocket = ({
   };
 
   const getChatHistory = () => {
+    // Reset the request flag to ensure we try again
+    hasRequestedHistoryRef.current = false;
+
     if (socketRef.current && socketRef.current.connected) {
+      hasRequestedHistoryRef.current = true;
       socketRef.current.emit('get_chat_history', { user_id: userId });
     } else {
       console.warn('Socket not connected, cannot get chat history');
+      socketManager.requestHistory(userId);
     }
   };
 
@@ -119,21 +117,12 @@ export const useSocket = ({
     }
   };
 
-  // Function to explicitly close the socket (for cleanup)
-  const closeSocket = () => {
-    if (socketInstance) {
-      socketInstance.disconnect();
-      socketInstance = null;
-    }
-  };
-
   return {
     socket: socketRef.current,
     sendChatRequest,
     getChatHistory,
     clearChatHistory,
     cancelStream,
-    closeSocket,
-    isConnected: socketRef.current?.connected || false,
+    isConnected,
   };
 };
