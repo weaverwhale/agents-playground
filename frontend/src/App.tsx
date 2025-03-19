@@ -223,7 +223,7 @@ function App(): React.ReactElement {
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <div className="flex-1 flex flex-col mx-auto w-full shadow-2xl bg-white">
+      <div className="flex-1 flex flex-col mx-auto w-full shadow-2xl bg-white h-full">
         {/* Header Bar with subtle gradient and modern styling */}
         <header className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-3 sm:px-5 shadow-md">
           <div className="flex justify-between items-center max-w-4xl mx-auto">
