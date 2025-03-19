@@ -35,8 +35,8 @@ async def stream_agent_response(user_id: str, message: str):
     # Create a modified context for HTTP streaming
     stream_context = dict(context or {})
     
-    # Reset tool notification tracking for this run
-    stream_context['sent_tool_notifications'] = set()
+    # Reset tool notification tracking for this run - using a dictionary now instead of a set
+    stream_context['sent_tool_notifications'] = {}
     
     # Create a task to process the agent's response
     process_task = asyncio.create_task(
@@ -47,8 +47,8 @@ async def stream_agent_response(user_id: str, message: str):
         )
     )
     
+    # Wait for the task to complete, capturing any exceptions
     try:
-        # Wait for the process to complete
         result = await process_task
         
         # Format the response safely
@@ -56,114 +56,70 @@ async def stream_agent_response(user_id: str, message: str):
             response_content = format_agent_response(result.final_output)
         except Exception as format_error:
             # If there's an error formatting the output, return a simpler response
+            log(f"Error formatting response: {str(format_error)}")
             if hasattr(result, 'final_output') and result.final_output is not None:
                 response_content = str(result.final_output)
             else:
                 response_content = "I'm sorry, I wasn't able to generate a proper response."
         
-        # Store the full response for chat history
-        full_response = response_content
-        
-        # First yield a thinking message
-        yield f"data: {{\"type\": \"loading\", \"content\": \"Generating response...\"}}\n\n"
+        # Send a short thinking message
+        yield f"data: {{\"type\": \"loading\", \"content\": \"Preparing response...\"}}\n\n"
         
         # Split the response into words to simulate token-by-token generation
         words = response_content.split()
-        chunks = []
-        
-        # Create chunks of approximately 5-10 words
-        chunk_size = min(max(len(words) // 10, 5), 10)  # Between 5-10 words per chunk
-        if chunk_size < 1:
-            chunk_size = 1
-            
-        for i in range(0, len(words), chunk_size):
-            end = min(i + chunk_size, len(words))
-            chunk = ' '.join(words[i:end])
-            chunks.append(chunk)
-        
-        # Keep track of accumulated text to send progressive updates
         accumulated_text = ""
         
-        # Stream each chunk with a small delay between them
-        for chunk in chunks:
-            accumulated_text += chunk + " "
+        # Stream each word with a minor delay
+        for i, word in enumerate(words):
+            accumulated_text += word + " "
             
-            # Send the accumulated text so far
-            yield f"data: {{\"type\": \"partial\", \"content\": {json.dumps(accumulated_text.strip())}}}\n\n"
-            
-            # Add a slight delay between chunks
-            await asyncio.sleep(0.05)
+            # Send partial update for each chunk of words (simulate token streaming)
+            if i % 5 == 0 or i == len(words) - 1:
+                yield f"data: {{\"type\": \"partial\", \"content\": \"{accumulated_text.strip()}\"}}\n\n"
+                await asyncio.sleep(0.05)  # Small delay between chunks
         
         # Send the final completed message
-        yield f"data: {{\"type\": \"content\", \"content\": {json.dumps(full_response)}}}\n\n"
+        yield f"data: {{\"type\": \"content\", \"content\": \"{response_content}\"}}\n\n"
         
-        # Add assistant response to chat history
-        state.add_message_to_history(user_id, "assistant", full_response, get_timestamp())
-        
-    except Exception as e:
-        error_message = f"Sorry, I encountered an error: {str(e)}"
-        state.add_message_to_history(user_id, "assistant", error_message, get_timestamp())
-        yield f"data: {{\"type\": \"error\", \"content\": {json.dumps(error_message)}}}\n\n"
-
-# API endpoints
-@router.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
-    """Stream a response from Moby Ecommerce Assistant"""
-    return StreamingResponse(
-        stream_agent_response(request.user_id, request.message),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Content-Type": "text/event-stream"
-        }
-    )
-
-@router.post("/chat")
-async def chat(request: ChatRequest):
-    """Get a non-streaming response from Moby Ecommerce Assistant"""
-    user_id = request.user_id
-    message = request.message
-    
-    # Initialize or get user context
-    context = state.get_or_create_user_context(user_id)
-    
-    # Add user message to chat history
-    timestamp = get_timestamp()
-    state.add_message_to_history(user_id, "user", message, timestamp)
-    
-    # Prepare input for the agent using chat history
-    input_list = state.format_history_for_agent(user_id)
-    if not input_list:
-        input_list = message
-    
-    try:
-        # Process the message with the agent
-        result = await CustomRunner.run(
-            moby_agent, 
-            input_list, 
-            context=context
-        )
-        
-        # Format the response safely
-        try:
-            response_content = format_agent_response(result.final_output)
-        except Exception as format_error:
-            # If there's an error formatting the output, return a simpler response
-            if hasattr(result, 'final_output') and result.final_output is not None:
-                response_content = str(result.final_output)
-            else:
-                response_content = "I'm sorry, I wasn't able to generate a proper response."
-        
-        # Add assistant response to chat history
+        # Add to chat history
         state.add_message_to_history(user_id, "assistant", response_content, get_timestamp())
         
-        return ChatResponse(message=response_content, thread_id=str(uuid.uuid4()))
-        
     except Exception as e:
-        error_message = f"Sorry, I encountered an error: {str(e)}"
-        state.add_message_to_history(user_id, "assistant", error_message, get_timestamp())
-        return ChatResponse(message=error_message, thread_id=str(uuid.uuid4()))
+        # Handle errors
+        error_msg = f"Error processing your request: {str(e)}"
+        log(f"Error: {error_msg}", "ERROR")
+        yield f"data: {{\"type\": \"error\", \"content\": \"{error_msg}\"}}\n\n"
+        
+        # Add error message to chat history
+        state.add_message_to_history(
+            user_id, 
+            "system", 
+            error_msg,
+            get_timestamp()
+        )
+
+# Define the HTTP API routes
+@router.post("/chat")
+async def chat(request: ChatRequest):
+    """
+    Handle chat request via HTTP API
+    """
+    try:
+        # Process the chat request
+        return StreamingResponse(
+            stream_agent_response(request.user_id, request.message),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        log(f"Error in /chat endpoint: {str(e)}", "ERROR")
+        return {"error": str(e)}
+
+@router.get("/health")
+async def health_check():
+    """
+    Health check endpoint to verify the API is running properly
+    """
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 @router.get("/chat/{user_id}/history")
 async def get_chat_history_http(user_id: str):

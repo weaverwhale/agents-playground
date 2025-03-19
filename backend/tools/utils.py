@@ -30,12 +30,19 @@ async def send_tool_notification(context: Dict[str, Any], tool_name: str, status
         socket = context.get('socket')
         sid = context.get('sid')
         
-        # For starting notifications, check if notification for this tool has already been sent
-        notification_key = f"{tool_name}_{status}"
-        sent_notifications = context.get('sent_tool_notifications', set())
-        if notification_key in sent_notifications:
-            # Notification already sent for this tool invocation
-            return False
+        # For starting notifications, ensure we don't send a duplicate starting event
+        # while the tool is still in progress (doesn't have a completed notification yet)
+        sent_notifications = context.get('sent_tool_notifications', {})
+        
+        # Different behavior based on status
+        if status == "starting":
+            # Check if we've already sent a starting notification for this tool
+            # and haven't sent a completion notification yet
+            current_status = sent_notifications.get(tool_name)
+            if current_status == "starting":
+                # Already sent a starting notification and haven't completed it yet
+                log(f"Skipping duplicate starting notification for: {tool_name}", "DEBUG")
+                return False
         
         if socket and sid:
             log(f"Sending tool notification for: {tool_name} ({status})", "DEBUG")
@@ -50,9 +57,11 @@ async def send_tool_notification(context: Dict[str, Any], tool_name: str, status
                 "status": status
             }, room=sid)
             
-            # Track that we've sent this notification
-            sent_notifications.add(notification_key)
-            context['sent_tool_notifications'] = sent_notifications
+            # Track that we've sent this notification and its status
+            # This allows us to track both starting and completed states
+            if 'sent_tool_notifications' not in context:
+                context['sent_tool_notifications'] = {}
+            context['sent_tool_notifications'][tool_name] = status
             return True
     except Exception as e:
         log(f"Error sending tool notification: {str(e)}", "ERROR")

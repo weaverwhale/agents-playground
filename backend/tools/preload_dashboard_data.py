@@ -64,6 +64,8 @@ async def preload_dashboard_data(
             headers=headers,
             json=payload
         )
+
+        log("PreloadDashboardData tool completed", "DEBUG")
         
         if response.status_code == 200 and response.text.strip():
             try:
@@ -80,9 +82,7 @@ async def preload_dashboard_data(
             log(error_msg, "ERROR")
             await send_tool_completion_notification(wrapper, "preload_dashboard_data")
             return error_msg
-        
-        log("PreloadDashboardData tool completed", "DEBUG")
-        
+                
     except Exception as e:
         error_msg = f"Error in PreloadDashboardData: {e}"
         log(error_msg, "ERROR")

@@ -64,6 +64,8 @@ async def marketing_mix_model(
             headers=headers,
             json=payload
         )
+
+        log("Marketing Mix Model tool completed", "DEBUG")
         
         if response.status_code == 200 and response.text.strip():
             try:
@@ -80,8 +82,6 @@ async def marketing_mix_model(
             log(error_msg, "ERROR")
             await send_tool_completion_notification(wrapper, "marketing_mix_model")
             return error_msg
-        
-        log("Marketing Mix Model tool completed", "DEBUG")
         
     except Exception as e:
         error_msg = f"Error in Marketing Mix Model: {e}"

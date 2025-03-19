@@ -90,8 +90,8 @@ def register_socketio_handlers(sio: socketio.AsyncServer):
                     "content": "Generating response..."
                 }, room=sid)
                 
-                # Reset tool notification tracking for this run
-                context['sent_tool_notifications'] = set()
+                # Reset tool notification tracking for this run - using a dictionary now instead of a set
+                context['sent_tool_notifications'] = {}
                 
                 # Now, run the agent to get the response
                 log(f"Running agent for user {user_id}", "DEBUG")

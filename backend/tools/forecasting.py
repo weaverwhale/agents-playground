@@ -65,6 +65,8 @@ async def forecasting(
             headers=headers,
             json=payload
         )
+
+        log("Forecasting tool completed", "DEBUG")
         
         if response.status_code == 200 and response.text.strip():
             try:
@@ -81,8 +83,6 @@ async def forecasting(
             log(error_msg, "ERROR")
             await send_tool_completion_notification(wrapper, "forecasting")
             return error_msg
-        
-        log("Forecasting tool completed", "DEBUG")
         
     except Exception as e:
         error_msg = f"Error in Forecasting: {e}"

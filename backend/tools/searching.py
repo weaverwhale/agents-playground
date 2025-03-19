@@ -74,6 +74,8 @@ async def searching(
             headers=headers,
             json=payload
         )
+
+        log("Searching tool completed", "DEBUG")
         
         if response.status_code == 200 and response.text.strip():
             try:
@@ -90,8 +92,6 @@ async def searching(
             log(error_msg, "ERROR")
             await send_tool_completion_notification(wrapper, "searching")
             return error_msg
-        
-        log("Searching tool completed", "DEBUG")
         
     except Exception as e:
         error_msg = f"Error in Searching: {e}"

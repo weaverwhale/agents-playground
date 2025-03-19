@@ -76,6 +76,9 @@ async def text_to_sql(
             headers=headers,
             json=payload
         )
+
+        log("TextToSQL tool completed", "DEBUG")
+
         
         if response.status_code == 200 and response.text.strip():
             try:
@@ -92,10 +95,6 @@ async def text_to_sql(
             log(error_msg, "ERROR")
             await send_tool_completion_notification(wrapper, "text_to_sql")
             return error_msg
-        
-        log("TextToSQL tool completed", "DEBUG")
-        await send_tool_completion_notification(wrapper, "text_to_sql")
-        return response
             
     except Exception as e:
         error_msg = f"Error in TextToSQL: {e}"

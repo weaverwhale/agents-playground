@@ -72,6 +72,8 @@ async def text_to_python(
             headers=headers,
             json=payload
         )
+
+        log("TextToPython tool completed", "DEBUG")
         
         if response.status_code == 200 and response.text.strip():
             try:
@@ -91,8 +93,6 @@ async def text_to_python(
             # Send tool notification for completion (with error)
             await send_tool_completion_notification(wrapper, "text_to_python")
             return error_msg
-        
-        log("TextToPython tool completed", "DEBUG")
         
     except Exception as e:
         error_msg = f"Error in TextToPython: {e}"
