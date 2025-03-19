@@ -1,5 +1,5 @@
 {
-  "name": "agent-app",
+  "name": "agent-playground",
   "version": "1.0.0",
   "description": "Agent Chat with FastAPI backend and React frontend",
   "main": "index.ts",
