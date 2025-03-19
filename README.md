@@ -26,6 +26,12 @@ nvm use && npm run setup
 npm run start
 ```
 
+### 🌐 Accessing the Application
+
+Once running, access the application at:
+
+- http://localhost:9876 (frontend and backend served from the same port)
+
 ## 🐋 Docker Support
 
 You can run the application using Docker, which simplifies setup and eliminates the need to install dependencies directly on your machine.
@@ -60,12 +66,6 @@ Alternatively, you can use Docker Compose directly:
 docker-compose build app
 docker-compose up app
 ```
-
-### 🌐 Accessing the Application
-
-Once running, access the application at:
-
-- http://localhost:9876 (frontend and backend served from the same port)
 
 ## 🔧 Troubleshooting Docker Issues
 
