@@ -38,7 +38,6 @@ function App(): React.ReactElement {
     const socket = io(window.location.origin);
     socketRef.current = socket;
 
-    // Socket.IO event listeners
     socket.on('connect', () => {
       console.log('Connected to Socket.IO server');
     });
@@ -48,7 +47,6 @@ function App(): React.ReactElement {
     });
 
     socket.on('stream_update', (data) => {
-      // Only log important events and errors
       if (data.type === 'error') {
         console.error('Stream error:', data.content);
       }
@@ -92,13 +90,6 @@ function App(): React.ReactElement {
         setStreamInProgress(true);
         return; // Exit early after handling tool notification
       }
-
-      // Enhanced debugging for tool updates with more thorough checks
-      const isTool =
-        data.type === 'tool' || // Explicit tool type
-        (data.type === 'loading' &&
-          typeof data.content === 'string' &&
-          data.content.toLowerCase().startsWith('using tool:'));
 
       // Check if this is a tool usage notification
       if (
@@ -205,9 +196,6 @@ function App(): React.ReactElement {
           // Keep all complete messages
           const completeMessages = prevMessages.filter((msg) => !msg.isPartial);
 
-          // Remove all tool messages now that we're getting actual content
-          // This ensures tool messages are removed as soon as the response starts flowing
-
           // Create our new partial message with the updated content
           const newPartialMessage: Message = {
             id: uuidv4(),
@@ -221,7 +209,6 @@ function App(): React.ReactElement {
           };
 
           // Return only complete messages and the new partial message
-          // Tool messages are intentionally not kept
           return [...completeMessages, newPartialMessage];
         });
 

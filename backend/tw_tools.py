@@ -25,7 +25,7 @@ async def moby(wrapper: RunContextWrapper, question: str, shop_id: str, parent_m
         Response from Moby
     """
     try:
-        # Send tool notification directly if socket is available
+        # Send tool notification if socket is available
         try:
             context = getattr(wrapper, 'context', {})
             socket = context.get('socket')
@@ -40,7 +40,6 @@ async def moby(wrapper: RunContextWrapper, question: str, shop_id: str, parent_m
         except Exception as e:
             print(f"Error sending tool notification: {str(e)}")
             
-        # Essential logging only
         print("Moby tool called with question: '{question}'")
 
         # Set default shop_id if none is provided
@@ -54,7 +53,6 @@ async def moby(wrapper: RunContextWrapper, question: str, shop_id: str, parent_m
         # Generate a UUID for conversation if not provided
         conversation_id = parent_message_id if parent_message_id else str(uuid.uuid4())
         
-        # Prepare request payload
         payload = {
             "stream": False,
             "shopId": shop_id,
@@ -69,14 +67,12 @@ async def moby(wrapper: RunContextWrapper, question: str, shop_id: str, parent_m
             "isOutsideMainChat": True
         }
 
-        # Make request to Moby API
         response = requests.post(
             MOBY_ENDPOINT,
             headers=headers,
             json=payload
         )
 
-        # Handle response
         if response.status_code == 200 and response.text.strip():
             try:
                 data = response.json()
@@ -113,7 +109,7 @@ async def search_web(wrapper: RunContextWrapper, search_term: str) -> str:
         JSON string with search results
     """
     try:
-        # Send tool notification directly if socket is available
+        # Send tool notification if socket is available
         try:
             context = getattr(wrapper, 'context', {})
             socket = context.get('socket')
@@ -128,10 +124,8 @@ async def search_web(wrapper: RunContextWrapper, search_term: str) -> str:
         except Exception as e:
             print(f"Error sending tool notification: {str(e)}")
             
-        # Essential logging only
         print(f"Search web tool called with term: '{search_term}'")
         
-        # Call the built-in web_search tool
         web_results = await wrapper.invoke_tool("web_search", {"search_term": search_term})
         
         print("Search web tool completed")

@@ -21,7 +21,7 @@ openai_api_key = os.getenv('OPENAI_API_KEY')
 if openai_api_key:
     os.environ['OPENAI_API_KEY'] = openai_api_key
 
-# Import our tools (only the ones defined in tw_tools.py)
+# Import tools
 from tw_tools import (
     moby,
     search_web,
@@ -41,7 +41,6 @@ class SimpleRunner(Runner):
             run_context['socket'] = socket
             run_context['sid'] = sid
         
-        # Basic logging - only show actually useful information
         print(f"Starting run with agent: {agent.name}")
         
         try:
@@ -87,7 +86,7 @@ moby_agent = Agent(
     ]
 )
 
-# User context storage - in a production app, this would use a database
+# User context storage
 user_contexts = {}
 chat_histories = {}
 
@@ -210,11 +209,9 @@ async def stream_agent_response(user_id: str, message: str):
             else:
                 response_content = "I'm sorry, I wasn't able to generate a proper response."
         
-        # Simulate token-by-token streaming by breaking up the response into chunks
         # Store the full response for chat history
         full_response = response_content
         
-        # Simulate progressive token streaming by splitting into chunks
         # First yield a thinking message
         yield f"data: {{\"type\": \"loading\", \"content\": \"Generating response...\"}}\n\n"
         
@@ -242,8 +239,8 @@ async def stream_agent_response(user_id: str, message: str):
             # Send the accumulated text so far
             yield f"data: {{\"type\": \"partial\", \"content\": {json.dumps(accumulated_text.strip())}}}\n\n"
             
-            # In a production environment, you might want to add a small delay here
-            await asyncio.sleep(0.05)  # Add a slight delay between chunks
+            # Add a slight delay between chunks
+            await asyncio.sleep(0.05)
         
         # Send the final completed message
         yield f"data: {{\"type\": \"content\", \"content\": {json.dumps(full_response)}}}\n\n"
@@ -264,7 +261,7 @@ async def stream_agent_response(user_id: str, message: str):
         })
         yield f"data: {{\"type\": \"error\", \"content\": {json.dumps(error_message)}}}\n\n"
 
-# API endpoints (HTTP) - define these BEFORE mounting Socket.IO app
+# API endpoints (HTTP)
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """Stream a response from Moby Ecommerce Assistant"""
@@ -452,7 +449,6 @@ async def chat_request(sid, data):
     }, room=sid)
     
     # IMMEDIATE TOOL NOTIFICATION: Don't wait for the agent to start
-    # This ensures tool usage is displayed promptly
     if likely_tool:
         # Send a direct tool notification right away
         await sio.emit('stream_update', {
@@ -524,8 +520,8 @@ async def chat_request(sid, data):
                     "content": accumulated_text.strip()
                 }, room=sid)
                 
-                # In a production environment, you might want to add a small delay here
-                await asyncio.sleep(0.05)  # Add a slight delay between chunks
+                # Add a slight delay between chunks
+                await asyncio.sleep(0.05)
             
             # Send the final completed message
             await sio.emit('stream_update', {
@@ -604,7 +600,6 @@ async def clear_chat_history(sid, data):
 # Run the API
 if __name__ == "__main__":
     # Get the port from environment variable or default to 9876
-    # to match the port in the Vite proxy configuration
     port = int(os.getenv("PORT", 9876))
     print(f"Starting server on port {port}")
     uvicorn.run("tw_agent:app", host="0.0.0.0", port=port, reload=True) 
