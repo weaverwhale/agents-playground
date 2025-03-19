@@ -17,6 +17,7 @@ export interface MessageProps {
     isTool?: boolean;
     tool?: string; // Add tool name if available directly
   };
+  userId?: string;
 }
 
 export interface UseSocketOptions {

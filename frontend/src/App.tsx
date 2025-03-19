@@ -143,7 +143,7 @@ function App(): React.ReactElement {
         <div className="flex flex-1 overflow-hidden">
           <div className="chat-messages flex flex-col flex-1">
             {messages.map((message, index) => (
-              <ChatMessage key={index} message={message} />
+              <ChatMessage key={index} message={message} userId={userId} />
             ))}
             <div ref={messagesEndRef} />
           </div>

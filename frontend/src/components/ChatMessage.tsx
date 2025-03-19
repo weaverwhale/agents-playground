@@ -4,7 +4,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { MessageProps } from '../types';
 
-const ChatMessage: React.FC<MessageProps> = ({ message }) => {
+const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
   const { role, content, timestamp, isPartial, isTool, tool } = message;
 
   // Extract tool name from content if present with more robust detection
@@ -45,7 +45,7 @@ const ChatMessage: React.FC<MessageProps> = ({ message }) => {
         <img
           src={
             role === 'user'
-              ? `https://api.dicebear.com/7.x/avataaars/svg?seed=user`
+              ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
               : role === 'system'
                 ? `https://api.dicebear.com/7.x/bottts/svg?seed=system`
                 : `https://api.dicebear.com/7.x/bottts/svg?seed=assistant`
