@@ -116,7 +116,7 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
           <div className="text-xs text-gray-500 mt-1">{timestamp}</div>
         )}
 
-        {isPartial && !toolCompleted && (
+        {isPartial && !isToolMessage && (
           <div
             className={`text-xs ${getToolStatusColor()} mt-1 flex items-center`}
           >
