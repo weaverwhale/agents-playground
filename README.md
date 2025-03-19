@@ -1,4 +1,4 @@
-# 🐳 Agent Chat Application
+# 🕵️ Agent Playground
 
 This project provides a chat interface to interact with an AI agent.
 

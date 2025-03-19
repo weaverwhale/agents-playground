@@ -229,7 +229,7 @@ function App(): React.ReactElement {
           <div className="flex justify-between items-center max-w-4xl mx-auto">
             <div className="flex items-center gap-4">
               <div className="bg-white/10 rounded-full w-12 h-12 flex items-center justify-center">
-                <span className="text-2xl">🐳</span>
+                <span className="text-2xl">🕵️</span>
               </div>
               <h1 className="text-xl font-bold">Agent Chat</h1>
             </div>
@@ -249,7 +249,7 @@ function App(): React.ReactElement {
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-5 text-gray-500">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-3xl">💬</span>
+                  <span className="text-3xl">🕵️</span>
                 </div>
                 <h3 className="text-xl font-medium text-gray-700 mb-2">
                   Welcome to Agent Chat
