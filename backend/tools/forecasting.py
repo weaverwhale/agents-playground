@@ -6,7 +6,7 @@ import json
 import requests
 from agents import function_tool, RunContextWrapper
 from typing import Optional
-from .utils import log, send_tool_notification, MOBY_TLD
+from .utils import log, send_tool_notification, send_tool_completion_notification, MOBY_TLD
 
 # Forecasting endpoint
 FORECASTING_ENDPOINT = f"{MOBY_TLD}/api/forecasting"
@@ -33,7 +33,7 @@ async def forecasting(
         
         # Send tool notification
         context = getattr(wrapper, 'context', {})
-        await send_tool_notification(context, "forecasting")
+        await send_tool_notification(context, "forecasting", "starting")
         
         log(f"Forecasting tool called with question: '{question}'", "INFO")
         
@@ -70,13 +70,16 @@ async def forecasting(
             try:
                 data = response.json()
                 # Return the formatted response
+                await send_tool_completion_notification(wrapper, "forecasting")
                 return json.dumps(data)
             except json.JSONDecodeError as json_err:
                 log(f"JSON parsing error: {json_err}", "ERROR")
+                await send_tool_completion_notification(wrapper, "forecasting")
                 return f"Error: Could not parse API response. {str(json_err)}"
         else:
             error_msg = f"Error: API request failed with status {response.status_code}"
             log(error_msg, "ERROR")
+            await send_tool_completion_notification(wrapper, "forecasting")
             return error_msg
         
         log("Forecasting tool completed", "DEBUG")
@@ -84,4 +87,5 @@ async def forecasting(
     except Exception as e:
         error_msg = f"Error in Forecasting: {e}"
         log(error_msg, "ERROR")
+        await send_tool_completion_notification(wrapper, "forecasting")
         return f"Error: Could not generate forecast. {str(e)}" 

@@ -6,7 +6,7 @@ import json
 import requests
 from agents import function_tool, RunContextWrapper
 from typing import Optional, Dict, Any
-from .utils import log, send_tool_notification, MOBY_TLD
+from .utils import log, send_tool_notification, send_tool_completion_notification, MOBY_TLD
 
 # TextToSQL endpoint
 TEXT_TO_SQL_ENDPOINT = f"{MOBY_TLD}/api/sql-generator"
@@ -35,7 +35,7 @@ async def text_to_sql(
         
         # Send tool notification
         context = getattr(wrapper, 'context', {})
-        await send_tool_notification(context, "text_to_sql")
+        await send_tool_notification(context, "text_to_sql", "starting")
         
         log(f"TextToSQL tool called with question: '{question}'", "INFO")
         
@@ -81,19 +81,24 @@ async def text_to_sql(
             try:
                 data = response.json()
                 # Return the formatted response
+                await send_tool_completion_notification(wrapper, "text_to_sql")
                 return json.dumps(data)
             except json.JSONDecodeError as json_err:
                 log(f"JSON parsing error: {json_err}", "ERROR")
+                await send_tool_completion_notification(wrapper, "text_to_sql")
                 return f"Error: Could not parse API response. {str(json_err)}"
         else:
             error_msg = f"Error: API request failed with status {response.status_code}"
             log(error_msg, "ERROR")
+            await send_tool_completion_notification(wrapper, "text_to_sql")
             return error_msg
         
         log("TextToSQL tool completed", "DEBUG")
+        await send_tool_completion_notification(wrapper, "text_to_sql")
         return response
             
     except Exception as e:
         error_msg = f"Error in TextToSQL: {e}"
         log(error_msg, "ERROR")
+        await send_tool_completion_notification(wrapper, "text_to_sql")
         return f"Error: Could not retrieve data. {str(e)}" 

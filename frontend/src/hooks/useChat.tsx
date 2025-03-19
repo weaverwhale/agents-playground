@@ -33,8 +33,64 @@ export const useChat = ({ userId }: UseChatProps) => {
 
   // Handler for tool updates from the stream
   const handleToolUpdate = useCallback((data: any) => {
-    // Replace any existing loading messages with our tool message
+    // Extract the tool status (starting or completed)
+    const toolStatus = data.status || 'starting';
+    const toolName = data.tool;
+
     setMessages((prevMessages) => {
+      // First, check if this is a new tool starting after a previous tool completed
+      if (toolStatus === 'starting') {
+        // Find any tool messages that might be for different tools
+        const existingToolMessages = prevMessages.filter(
+          (msg) => msg.isTool && msg.isPartial
+        );
+
+        // If we have a different tool with 'completed' status but we're now starting a new tool,
+        // we need to make sure we add a new tool message rather than trying to update an existing one
+        const isDifferentToolStarting = existingToolMessages.some(
+          (msg) => msg.tool !== toolName && msg.toolStatus === 'completed'
+        );
+
+        if (isDifferentToolStarting) {
+          // Keep all existing messages (including other completed tool messages)
+          // and add a new tool message for this new tool
+          return [
+            ...prevMessages,
+            {
+              id: uuidv4(),
+              role: 'assistant',
+              content: data.content,
+              timestamp: formatTime(),
+              isPartial: true,
+              isTool: true,
+              tool: toolName,
+              toolStatus: 'starting',
+            },
+          ];
+        }
+      }
+
+      // For tool completion, find and update the matching tool message
+      if (toolStatus === 'completed') {
+        // Find the matching tool message
+        const existingToolIndex = prevMessages.findIndex(
+          (msg) => msg.isTool && msg.tool === toolName && msg.isPartial
+        );
+
+        // If we found the tool message, update its status
+        if (existingToolIndex !== -1) {
+          const updatedMessages = [...prevMessages];
+          updatedMessages[existingToolIndex] = {
+            ...updatedMessages[existingToolIndex],
+            content: data.content, // Update with completion message
+            toolStatus: 'completed',
+            // Keep isPartial true until the final response arrives
+          };
+          return updatedMessages;
+        }
+      }
+
+      // For starting a tool (when no other tool is active or we're reusing same tool)
       // Keep all messages except loading messages
       const nonLoadingMessages = prevMessages.filter(
         (msg) => !(msg.isPartial && msg.role === 'assistant' && !msg.isTool)
@@ -42,11 +98,19 @@ export const useChat = ({ userId }: UseChatProps) => {
 
       // Find if we already have this exact tool message
       const existingToolMessage = nonLoadingMessages.find(
-        (msg) => msg.isTool && msg.tool === data.tool && msg.isPartial
+        (msg) => msg.isTool && msg.tool === toolName && msg.isPartial
       );
 
       // If we already have this tool message, don't add a duplicate
       if (existingToolMessage) {
+        // If the status is different, update it
+        if (existingToolMessage.toolStatus !== toolStatus) {
+          return nonLoadingMessages.map((msg) =>
+            msg.isTool && msg.tool === toolName && msg.isPartial
+              ? { ...msg, toolStatus, content: data.content }
+              : msg
+          );
+        }
         return nonLoadingMessages;
       }
 
@@ -60,7 +124,8 @@ export const useChat = ({ userId }: UseChatProps) => {
           timestamp: formatTime(),
           isPartial: true,
           isTool: true,
-          tool: data.tool,
+          tool: toolName,
+          toolStatus,
         },
       ];
     });
@@ -72,7 +137,7 @@ export const useChat = ({ userId }: UseChatProps) => {
 
   // Handler for loading updates
   const handleLoadingUpdate = useCallback((data: any) => {
-    // Check if this is a tool usage notification
+    // Check if this is a tool usage notification (deprecated approach, keeping for compatibility)
     if (
       typeof data.content === 'string' &&
       data.content.toLowerCase().startsWith('using tool:')
@@ -110,6 +175,7 @@ export const useChat = ({ userId }: UseChatProps) => {
             isPartial: true,
             isTool: true,
             tool: extractedTool,
+            toolStatus: 'starting', // Default to starting for backwards compatibility
           },
         ];
       });
@@ -216,6 +282,9 @@ export const useChat = ({ userId }: UseChatProps) => {
   const handleFinalContent = useCallback((data: any) => {
     // Final content replaces all partial messages including tool messages
     setMessages((prevMessages) => {
+      // Log the existing messages for debugging
+      console.log('Cleaning up tool messages for final response');
+
       // Keep only complete messages - remove all partial messages including tools
       const completeMessages = prevMessages.filter((msg) => !msg.isPartial);
 
@@ -406,35 +475,137 @@ export const useChat = ({ userId }: UseChatProps) => {
                         : msg
                     )
                   );
+                } else if (parsedData.type === 'tool') {
+                  // Handle tool messages in HTTP fallback mode
+                  // Extract the tool status
+                  const toolStatus = parsedData.status || 'starting';
+                  const toolName = parsedData.tool;
+
+                  if (toolStatus === 'starting') {
+                    // Add a new tool message
+                    setMessages((prevMessages) => {
+                      // Check if we already have this tool message
+                      const existingToolMessage = prevMessages.find(
+                        (msg) =>
+                          msg.isTool && msg.tool === toolName && msg.isPartial
+                      );
+
+                      if (existingToolMessage) {
+                        // Update existing tool message
+                        return prevMessages.map((msg) =>
+                          msg.isTool && msg.tool === toolName && msg.isPartial
+                            ? {
+                                ...msg,
+                                toolStatus: 'starting',
+                                content: parsedData.content,
+                              }
+                            : msg
+                        );
+                      }
+
+                      // Remove placeholder and add tool message
+                      const messagesWithoutPlaceholder = prevMessages.filter(
+                        (msg) => msg.id !== placeholderId
+                      );
+
+                      return [
+                        ...messagesWithoutPlaceholder,
+                        {
+                          id: uuidv4(),
+                          role: 'assistant',
+                          content: parsedData.content,
+                          timestamp: formatTime(),
+                          isPartial: true,
+                          isTool: true,
+                          tool: toolName,
+                          toolStatus: 'starting',
+                        },
+                      ];
+                    });
+                  } else if (toolStatus === 'completed') {
+                    // Update existing tool message to completed
+                    setMessages((prevMessages) => {
+                      const existingToolIndex = prevMessages.findIndex(
+                        (msg) =>
+                          msg.isTool && msg.tool === toolName && msg.isPartial
+                      );
+
+                      if (existingToolIndex !== -1) {
+                        // Update the existing tool message
+                        const updatedMessages = [...prevMessages];
+                        updatedMessages[existingToolIndex] = {
+                          ...updatedMessages[existingToolIndex],
+                          content: parsedData.content,
+                          toolStatus: 'completed',
+                        };
+                        return updatedMessages;
+                      }
+
+                      // If we can't find the tool message, create a new completed one
+                      return [
+                        ...prevMessages.filter(
+                          (msg) => msg.id !== placeholderId
+                        ),
+                        {
+                          id: uuidv4(),
+                          role: 'assistant',
+                          content: parsedData.content,
+                          timestamp: formatTime(),
+                          isPartial: true,
+                          isTool: true,
+                          tool: toolName,
+                          toolStatus: 'completed',
+                        },
+                      ];
+                    });
+                  }
                 } else if (parsedData.type === 'partial') {
                   // Update with partial response while still streaming
-                  setMessages((prevMessages) =>
-                    prevMessages.map((msg) =>
-                      msg.id === placeholderId
-                        ? {
-                            ...msg,
-                            content: parsedData.content,
-                            isPartial: true,
-                          }
-                        : msg
-                    )
-                  );
+                  // When we get partial content, remove all tool messages as they're done
+                  setMessages((prevMessages) => {
+                    // Keep all complete messages and non-tool partial messages
+                    const filteredMessages = prevMessages.filter(
+                      (msg) => !msg.isPartial || (msg.isPartial && !msg.isTool)
+                    );
+
+                    // Replace the placeholder with the partial content
+                    const messagesWithoutPlaceholder = filteredMessages.filter(
+                      (msg) => msg.id !== placeholderId
+                    );
+
+                    return [
+                      ...messagesWithoutPlaceholder,
+                      {
+                        id: uuidv4(),
+                        role: 'assistant',
+                        content: parsedData.content,
+                        timestamp: formatTime(),
+                        isPartial: true,
+                      },
+                    ];
+                  });
                 } else if (
                   parsedData.type === 'content' ||
                   parsedData.type === 'error'
                 ) {
-                  // Replace loading message with actual content
-                  setMessages((prevMessages) =>
-                    prevMessages.map((msg) =>
-                      msg.id === placeholderId
-                        ? {
-                            ...msg,
-                            content: parsedData.content,
-                            isPartial: false,
-                          }
-                        : msg
-                    )
-                  );
+                  // Final content - replace all partial messages including tools
+                  setMessages((prevMessages) => {
+                    // Keep only complete messages
+                    const completeMessages = prevMessages.filter(
+                      (msg) => !msg.isPartial
+                    );
+
+                    return [
+                      ...completeMessages,
+                      {
+                        id: uuidv4(),
+                        role: 'assistant',
+                        content: parsedData.content,
+                        timestamp: formatTime(),
+                        isPartial: false,
+                      },
+                    ];
+                  });
                 }
               } catch (error) {
                 // Fallback for non-JSON messages (backward compatibility)

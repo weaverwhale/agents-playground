@@ -6,7 +6,7 @@ import json
 import requests
 from agents import function_tool, RunContextWrapper
 from typing import Optional, List
-from .utils import log, send_tool_notification, MOBY_TLD
+from .utils import log, send_tool_notification, send_tool_completion_notification, MOBY_TLD
 
 # Searching endpoint
 SEARCHING_ENDPOINT = f"{MOBY_TLD}/api/search"
@@ -37,7 +37,7 @@ async def searching(
         
         # Send tool notification
         context = getattr(wrapper, 'context', {})
-        await send_tool_notification(context, "searching")
+        await send_tool_notification(context, "searching", "starting")
         
         log(f"Searching tool called with question: '{question}'", "INFO")
         
@@ -79,13 +79,16 @@ async def searching(
             try:
                 data = response.json()
                 # Return the formatted response
+                await send_tool_completion_notification(wrapper, "searching")
                 return json.dumps(data)
             except json.JSONDecodeError as json_err:
                 log(f"JSON parsing error: {json_err}", "ERROR")
+                await send_tool_completion_notification(wrapper, "searching")
                 return f"Error: Could not parse API response. {str(json_err)}"
         else:
             error_msg = f"Error: API request failed with status {response.status_code}"
             log(error_msg, "ERROR")
+            await send_tool_completion_notification(wrapper, "searching")
             return error_msg
         
         log("Searching tool completed", "DEBUG")
@@ -93,4 +96,5 @@ async def searching(
     except Exception as e:
         error_msg = f"Error in Searching: {e}"
         log(error_msg, "ERROR")
+        await send_tool_completion_notification(wrapper, "searching")
         return f"Error: Could not complete search. {str(e)}" 

@@ -5,7 +5,8 @@ import 'katex/dist/katex.min.css';
 import { MessageProps } from '../types';
 
 const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
-  const { role, content, timestamp, isPartial, isTool, tool } = message;
+  const { role, content, timestamp, isPartial, isTool, tool, toolStatus } =
+    message;
 
   // Extract tool name from content if present with more robust detection
   // Make the regex more permissive to catch different tool name formats
@@ -21,7 +22,22 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
   // Determine if this is a tool message (either by flag or content)
   const isToolMessage = isTool || !!matchResult;
 
-  // Loading dots animation component
+  const toolCompleted = toolStatus === 'completed';
+
+  // Determine appropriate status text
+  const getToolStatusText = () => {
+    if (!isToolMessage && !isPartial) return 'AI is thinking';
+    if (toolCompleted) return 'Tool completed, waiting for next step...';
+    return `Working with ${toolName}...`;
+  };
+
+  // Determine color for tool status
+  const getToolStatusColor = () => {
+    if (!isToolMessage) return 'text-blue-500';
+    if (toolCompleted) return 'text-green-500';
+    return 'text-blue-500';
+  };
+
   const LoadingDots = () => (
     <div className="flex space-x-2 mt-2">
       <div
@@ -56,7 +72,27 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
       </div>
       <div className="flex-1">
         {isToolMessage ? (
-          <p>Working with tools...</p>
+          <div
+            className={`tool-message p-2 rounded ${toolStatus === 'completed' ? 'bg-green-50' : 'bg-blue-50'}`}
+          >
+            <p
+              className={`font-medium ${toolStatus === 'completed' ? 'text-green-700' : 'text-blue-700'}`}
+            >
+              {toolStatus === 'completed'
+                ? '✓ Tool completed'
+                : '⚙️ Working with tool...'}
+            </p>
+            <p className="text-sm text-gray-600">
+              {toolName ? (
+                <span className="font-semibold">{toolName}</span>
+              ) : (
+                'AI Assistant'
+              )}
+              {toolStatus === 'completed'
+                ? ' finished processing'
+                : ' is processing your request'}
+            </p>
+          </div>
         ) : (
           <div className="message-content markdown-content">
             <ReactMarkdown
@@ -72,11 +108,11 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
           <div className="text-xs text-gray-500 mt-1">{timestamp}</div>
         )}
 
-        {isPartial && (
-          <div className="text-xs text-blue-500 mt-1 flex items-center">
-            <span className="mr-2">
-              {isToolMessage ? `Asking ${toolName}` : 'AI is thinking'}
-            </span>
+        {isPartial && !toolCompleted && (
+          <div
+            className={`text-xs ${getToolStatusColor()} mt-1 flex items-center`}
+          >
+            <span className="mr-2">{getToolStatusText()}</span>
             <LoadingDots />
           </div>
         )}

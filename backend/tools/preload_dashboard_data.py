@@ -6,7 +6,7 @@ import json
 import requests
 from agents import function_tool, RunContextWrapper
 from typing import Optional
-from .utils import log, send_tool_notification, MOBY_TLD
+from .utils import log, send_tool_notification, send_tool_completion_notification, MOBY_TLD
 
 # PreloadDashboardData endpoint
 DASHBOARD_ENDPOINT = f"{MOBY_TLD}/api/dashboard-data"
@@ -33,7 +33,7 @@ async def preload_dashboard_data(
         
         # Send tool notification
         context = getattr(wrapper, 'context', {})
-        await send_tool_notification(context, "preload_dashboard_data")
+        await send_tool_notification(context, "preload_dashboard_data", "starting")
         
         log(f"PreloadDashboardData tool called with question: '{question}'", "INFO")
         
@@ -69,13 +69,16 @@ async def preload_dashboard_data(
             try:
                 data = response.json()
                 # Return the formatted response
+                await send_tool_completion_notification(wrapper, "preload_dashboard_data")
                 return json.dumps(data)
             except json.JSONDecodeError as json_err:
                 log(f"JSON parsing error: {json_err}", "ERROR")
+                await send_tool_completion_notification(wrapper, "preload_dashboard_data")
                 return f"Error: Could not parse API response. {str(json_err)}"
         else:
             error_msg = f"Error: API request failed with status {response.status_code}"
             log(error_msg, "ERROR")
+            await send_tool_completion_notification(wrapper, "preload_dashboard_data")
             return error_msg
         
         log("PreloadDashboardData tool completed", "DEBUG")
@@ -83,4 +86,5 @@ async def preload_dashboard_data(
     except Exception as e:
         error_msg = f"Error in PreloadDashboardData: {e}"
         log(error_msg, "ERROR")
+        await send_tool_completion_notification(wrapper, "preload_dashboard_data")
         return f"Error: Could not retrieve dashboard data. {str(e)}" 

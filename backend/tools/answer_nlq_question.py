@@ -6,7 +6,7 @@ import json
 import requests
 from agents import function_tool, RunContextWrapper
 from typing import Optional
-from .utils import log, send_tool_notification, MOBY_TLD
+from .utils import log, send_tool_notification, send_tool_completion_notification, MOBY_TLD
 
 # General NLQ endpoint
 MOBY_ENDPOINT = f"{MOBY_TLD}/willy/answer-nlq-question"
@@ -36,7 +36,7 @@ async def answer_nlq_question(
         
         # Send tool notification
         context = getattr(wrapper, 'context', {})
-        await send_tool_notification(context, "answer_nlq_question")
+        await send_tool_notification(context, "answer_nlq_question", "starting")
         
         log(f"Answer NLQ Question (fallback) tool called with question: '{question}'", "INFO")
         
@@ -77,20 +77,25 @@ async def answer_nlq_question(
                 
                 if data.get("messages") and len(data["messages"]) > 0:
                     last_message_text = data["messages"][-1].get("text", "") + " "
+                    await send_tool_completion_notification(wrapper, "answer_nlq_question")
                     return last_message_text
                 else:
+                    await send_tool_completion_notification(wrapper, "answer_nlq_question")
                     return "No answer received from the NLQ system."
             except json.JSONDecodeError as json_err:
                 log(f"JSON parsing error: {json_err}", "ERROR")
+                await send_tool_completion_notification(wrapper, "answer_nlq_question")
                 return f"Error: Could not parse API response. {str(json_err)}"
         else:
             error_msg = f"Error: API request failed with status {response.status_code}"
             log(error_msg, "ERROR")
+            await send_tool_completion_notification(wrapper, "answer_nlq_question")
             return error_msg
             
     except Exception as e:
         error_msg = f"Error querying NLQ system: {e}"
         log(error_msg, "ERROR")
+        await send_tool_completion_notification(wrapper, "answer_nlq_question")
         return f"Error: Could not fetch response from Triple Whale. {str(e)}"
     finally:
         log("Answer NLQ Question tool completed", "DEBUG") 

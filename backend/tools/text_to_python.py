@@ -6,7 +6,7 @@ import json
 import requests
 from agents import function_tool, RunContextWrapper
 from typing import Optional
-from .utils import log, send_tool_notification, MOBY_TLD
+from .utils import log, send_tool_notification, send_tool_completion_notification, MOBY_TLD
 
 # TextToPython endpoint
 TEXT_TO_PYTHON_ENDPOINT = f"{MOBY_TLD}/api/code-interpreter"
@@ -31,9 +31,9 @@ async def text_to_python(
         # Generate a unique message ID
         message_id = str(uuid.uuid4())
         
-        # Send tool notification
+        # Send tool notification for start
         context = getattr(wrapper, 'context', {})
-        await send_tool_notification(context, "text_to_python")
+        await send_tool_notification(context, "text_to_python", "starting")
         
         log(f"TextToPython tool called with question: '{question}'", "INFO")
         
@@ -76,14 +76,20 @@ async def text_to_python(
         if response.status_code == 200 and response.text.strip():
             try:
                 data = response.json()
+                # Send tool notification for completion
+                await send_tool_completion_notification(wrapper, "text_to_python")
                 # Return the formatted response
                 return json.dumps(data)
             except json.JSONDecodeError as json_err:
                 log(f"JSON parsing error: {json_err}", "ERROR")
+                # Send tool notification for completion (with error)
+                await send_tool_completion_notification(wrapper, "text_to_python")
                 return f"Error: Could not parse API response. {str(json_err)}"
         else:
             error_msg = f"Error: API request failed with status {response.status_code}"
             log(error_msg, "ERROR")
+            # Send tool notification for completion (with error)
+            await send_tool_completion_notification(wrapper, "text_to_python")
             return error_msg
         
         log("TextToPython tool completed", "DEBUG")
@@ -91,4 +97,9 @@ async def text_to_python(
     except Exception as e:
         error_msg = f"Error in TextToPython: {e}"
         log(error_msg, "ERROR")
+        # Send tool notification for completion (with error)
+        try:
+            await send_tool_completion_notification(wrapper, "text_to_python")
+        except:
+            pass
         return f"Error: Could not generate or execute Python code. {str(e)}" 

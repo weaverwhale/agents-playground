@@ -6,6 +6,7 @@ export interface Message {
   isPartial?: boolean;
   isTool?: boolean;
   tool?: string;
+  toolStatus?: 'starting' | 'completed';
 }
 
 export interface MessageProps {
@@ -16,6 +17,7 @@ export interface MessageProps {
     isPartial?: boolean;
     isTool?: boolean;
     tool?: string; // Add tool name if available directly
+    toolStatus?: 'starting' | 'completed';
   };
   userId?: string;
 }

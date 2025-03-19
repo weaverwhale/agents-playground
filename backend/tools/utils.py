@@ -17,28 +17,41 @@ def log(message: str, level: str = "INFO"):
     sys.stdout.flush()
 
 # Common function to send tool notifications
-async def send_tool_notification(context: Dict[str, Any], tool_name: str):
-    """Send a notification about tool usage through the socket if available."""
+async def send_tool_notification(context: Dict[str, Any], tool_name: str, status: str = "starting"):
+    """
+    Send a notification about tool usage through the socket if available.
+    
+    Args:
+        context: The context object containing socket and session information
+        tool_name: The name of the tool being used
+        status: The status of the tool ("starting" or "completed")
+    """
     try:
         socket = context.get('socket')
         sid = context.get('sid')
         
-        # Check if notification for this tool has already been sent
+        # For starting notifications, check if notification for this tool has already been sent
+        notification_key = f"{tool_name}_{status}"
         sent_notifications = context.get('sent_tool_notifications', set())
-        if tool_name in sent_notifications:
+        if notification_key in sent_notifications:
             # Notification already sent for this tool invocation
             return False
         
         if socket and sid:
-            log(f"Sending tool notification for: {tool_name}", "DEBUG")
+            log(f"Sending tool notification for: {tool_name} ({status})", "DEBUG")
+            
+            # Different message content based on status
+            content = f"Using tool: {tool_name}..." if status == "starting" else f"Tool {tool_name} completed"
+            
             await socket.emit('stream_update', {
                 "type": "tool",
-                "content": f"Using tool: {tool_name}...",
-                "tool": tool_name
+                "content": content,
+                "tool": tool_name,
+                "status": status
             }, room=sid)
             
             # Track that we've sent this notification
-            sent_notifications.add(tool_name)
+            sent_notifications.add(notification_key)
             context['sent_tool_notifications'] = sent_notifications
             return True
     except Exception as e:
@@ -110,4 +123,21 @@ async def call_moby_endpoint(endpoint: str, question: str, shop_id: str,
     else:
         error_msg = f"API request failed with status {response.status_code}"
         log(error_msg, "ERROR")
-        raise Exception(error_msg) 
+        raise Exception(error_msg)
+
+# Helper function to add tool completion notifications to all tools
+async def send_tool_completion_notification(wrapper, tool_name):
+    """
+    Helper function to send a completion notification for a tool.
+    Makes it easier to ensure notifications are sent even in exception handlers.
+    
+    Args:
+        wrapper: The RunContextWrapper instance
+        tool_name: The name of the tool that completed
+    """
+    try:
+        context = getattr(wrapper, 'context', {})
+        await send_tool_notification(context, tool_name, "completed")
+    except Exception as e:
+        log(f"Error sending completion notification for {tool_name}: {str(e)}", "ERROR")
+        pass  # Don't throw errors from notification functions 

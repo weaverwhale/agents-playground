@@ -5,7 +5,7 @@ import uuid
 import json
 from agents import function_tool, RunContextWrapper
 from typing import Optional
-from .utils import log, send_tool_notification
+from .utils import log, send_tool_notification, send_tool_completion_notification
 
 @function_tool
 async def search_web(
@@ -27,7 +27,7 @@ async def search_web(
         
         # Send tool notification
         context = getattr(wrapper, 'context', {})
-        await send_tool_notification(context, "search_web")
+        await send_tool_notification(context, "search_web", "starting")
         
         log(f"Search web (fallback) tool called with term: '{search_term}'", "INFO")
         
@@ -38,9 +38,11 @@ async def search_web(
         response = json.dumps({"source": "web_search", "results": result})
         
         log("Search web tool completed", "DEBUG")
+        await send_tool_completion_notification(wrapper, "search_web")
         return response
             
     except Exception as e:
         error_msg = f"Error in search_web: {e}"
         log(error_msg, "ERROR")
+        await send_tool_completion_notification(wrapper, "search_web")
         return json.dumps({"error": str(e), "message": "Failed to search the web"}) 

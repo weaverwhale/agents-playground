@@ -10,17 +10,6 @@ from agent import CustomRunner, moby_agent
 from utils import format_agent_response, log, get_timestamp
 import state
 
-# Function to determine likely tool based on message content
-def determine_likely_tool(message: str):
-    """Determine which tool is likely to be used based on the message content."""
-    # Common patterns for ROAS, analytics, marketing questions
-    if any(term in message.lower() for term in ['roas', 'analytics', 'sales', 'revenue', 'marketing', 'ads', 'performance']):
-        return "moby"
-    # Common patterns for search or external information
-    elif any(term in message.lower() for term in ['search', 'find', 'look up', 'compare', 'reviews', 'prices']):
-        return "search_web"
-    return None
-
 # Register Socket.IO event handlers
 def register_socketio_handlers(sio: socketio.AsyncServer):
     log("Registering Socket.IO event handlers...", "INFO")
@@ -75,12 +64,6 @@ def register_socketio_handlers(sio: socketio.AsyncServer):
         
         # Initialize or get user context
         context = state.get_or_create_user_context(user_id)
-        
-        # Determine which tool is likely to be used based on the message content
-        likely_tool = determine_likely_tool(message)
-        if likely_tool:
-            log(f"Likely tool to be used: {likely_tool}", "DEBUG")
-        
         # Add user message to chat history
         timestamp = get_timestamp()
         state.add_message_to_history(user_id, "user", message, timestamp)
@@ -95,15 +78,6 @@ def register_socketio_handlers(sio: socketio.AsyncServer):
             "type": "loading", 
             "content": "Processing your request..."
         }, room=sid)
-        
-        # IMMEDIATE TOOL NOTIFICATION: Don't wait for the agent to start
-        if likely_tool:
-            # Send a direct tool notification right away
-            await sio.emit('stream_update', {
-                "type": "tool",
-                "content": f"Using tool: {likely_tool}...",
-                "tool": likely_tool
-            }, room=sid)
         
         # Create a separate task for processing the response
         async def process_agent_response():
