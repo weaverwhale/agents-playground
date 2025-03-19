@@ -4,6 +4,7 @@ Utility functions and shared constants for Triple Whale tools.
 import sys
 import json
 import uuid
+import asyncio
 import requests
 from typing import Dict, Any, Optional
 
@@ -62,6 +63,11 @@ async def send_tool_notification(context: Dict[str, Any], tool_name: str, status
             if 'sent_tool_notifications' not in context:
                 context['sent_tool_notifications'] = {}
             context['sent_tool_notifications'][tool_name] = status
+            
+            # For "starting" notifications, yield control to the event loop to ensure the notification is processed
+            if status == "starting":
+                await asyncio.sleep(0)
+                
             return True
     except Exception as e:
         log(f"Error sending tool notification: {str(e)}", "ERROR")
