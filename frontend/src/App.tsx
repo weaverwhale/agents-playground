@@ -255,8 +255,8 @@ function App(): React.ReactElement {
                   Welcome to Agent Chat
                 </h3>
                 <p className="max-w-md text-gray-500">
-                  Start a conversation with the AI assistant to get help with
-                  your questions.
+                  Start a conversation with the AI agent to get help with your
+                  questions.
                 </p>
               </div>
             ) : (
