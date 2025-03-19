@@ -3,6 +3,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { MessageProps } from '../types';
+import { formatToolName } from '../utils/formatters';
 
 const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
   const { role, content, timestamp, isPartial, isTool, tool, toolStatus } =
@@ -85,7 +86,9 @@ const ChatMessage: React.FC<MessageProps> = ({ message, userId }) => {
             </p>
             <p className="text-sm text-gray-600">
               {toolName ? (
-                <span className="font-semibold">{toolName}</span>
+                <span className="font-semibold capitalize">
+                  {formatToolName(toolName)}
+                </span>
               ) : (
                 'AI Assistant'
               )}

@@ -20,3 +20,10 @@ export const formatDateTime = (date: Date = new Date()): string => {
     minute: '2-digit',
   });
 };
+
+export const formatToolName = (toolName: string): string => {
+  if (toolName === 'answer_nlq_question') {
+    return 'Moby';
+  }
+  return toolName.replace(/_/g, ' ');
+};
