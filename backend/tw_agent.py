@@ -40,27 +40,13 @@ class SimpleRunner(Runner):
         if socket and sid:
             run_context['socket'] = socket
             run_context['sid'] = sid
-            
-        # Basic debug logging
+        
+        # Basic logging - only show actually useful information
         print(f"Starting run with agent: {agent.name}")
-        print(f"Input type: {type(input)}, Context available: {bool(context)}")
-        print(f"Socket available: {bool(socket)}, SID: {sid}")
-        
-        # Log available tools
-        tool_names = [
-            tool.__name__ if hasattr(tool, '__name__') else str(tool)
-            for tool in agent.tools
-        ]
-        print(f"Available tools: {tool_names}")
-        sys.stdout.flush()
-        
-        # Run with the context and capture the result
-        print("Starting agent run...")
-        sys.stdout.flush()
         
         try:
             result = await Runner.run(agent, input, context=run_context)
-            print("Agent run completed successfully")
+            print(f"Agent run completed")
             return result
         except Exception as e:
             print(f"Error in Runner.run: {str(e)}")
@@ -200,9 +186,6 @@ async def stream_agent_response(user_id: str, message: str):
     
     # Create a modified context for HTTP streaming
     stream_context = dict(context or {})
-    
-    print(f"\nSTARTING AGENT RUN IN HTTP STREAMING MODE\n")
-    sys.stdout.flush()
     
     # Create a task to process the agent's response
     process_task = asyncio.create_task(
@@ -388,7 +371,6 @@ async def connect(sid, environ):
 @sio.event
 async def disconnect(sid):
     print(f"Client disconnected: {sid}")
-    sys.stdout.flush()  # Force immediate print to console
     # Cancel any active tasks for this session
     if sid in active_tasks and active_tasks[sid]:
         for task in active_tasks[sid]:
@@ -472,17 +454,12 @@ async def chat_request(sid, data):
     # IMMEDIATE TOOL NOTIFICATION: Don't wait for the agent to start
     # This ensures tool usage is displayed promptly
     if likely_tool:
-        print(f"SENDING IMMEDIATE TOOL NOTIFICATION: {likely_tool}")
-        try:
-            # Send a direct tool notification right away
-            await sio.emit('stream_update', {
-                "type": "tool",  # Use the explicit tool type
-                "content": f"Using tool: {likely_tool}...",
-                "tool": likely_tool
-            }, room=sid)
-            print(f"IMMEDIATE TOOL NOTIFICATION SENT: {likely_tool}")
-        except Exception as e:
-            print(f"ERROR sending immediate tool notification: {str(e)}")
+        # Send a direct tool notification right away
+        await sio.emit('stream_update', {
+            "type": "tool",
+            "content": f"Using tool: {likely_tool}...",
+            "tool": likely_tool
+        }, room=sid)
     
     # Create an async task to handle the streaming
     async def process_agent_response():
@@ -497,9 +474,6 @@ async def chat_request(sid, data):
             socket_context = dict(context)
             socket_context['socket'] = sio
             socket_context['sid'] = sid
-            
-            print(f"\nSTARTING AGENT RUN IN SOCKET MODE - SID: {sid}\n")
-            sys.stdout.flush()
             
             # Process the message with the agent
             result = await SimpleRunner.run(
@@ -633,5 +607,4 @@ if __name__ == "__main__":
     # to match the port in the Vite proxy configuration
     port = int(os.getenv("PORT", 9876))
     print(f"Starting server on port {port}")
-    sys.stdout.flush()  # Force immediate print to console
     uvicorn.run("tw_agent:app", host="0.0.0.0", port=port, reload=True) 

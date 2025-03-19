@@ -40,20 +40,20 @@ function App(): React.ReactElement {
 
     // Socket.IO event listeners
     socket.on('connect', () => {
-      console.log('🟢 Connected to Socket.IO server');
+      console.log('Connected to Socket.IO server');
     });
 
     socket.on('disconnect', () => {
-      console.log('🔴 Disconnected from Socket.IO server');
+      console.log('Disconnected from Socket.IO server');
     });
 
     socket.on('stream_update', (data) => {
-      // Global logging for ALL stream updates
-      console.log('📩 STREAM UPDATE RECEIVED:', data);
+      // Only log important events and errors
+      if (data.type === 'error') {
+        console.error('Stream error:', data.content);
+      }
 
       if (data.type === 'tool') {
-        console.warn('🧰 DIRECT TOOL TYPE DETECTED:', data);
-
         // Replace any existing loading messages with our tool message
         setMessages((prevMessages) => {
           // Keep all messages except loading messages
@@ -68,9 +68,6 @@ function App(): React.ReactElement {
 
           // If we already have this tool message, don't add a duplicate
           if (existingToolMessage) {
-            console.log(
-              `⚠️ Tool message for ${data.tool} already exists, not duplicating`
-            );
             return nonLoadingMessages;
           }
 
@@ -109,8 +106,6 @@ function App(): React.ReactElement {
         typeof data.content === 'string' &&
         data.content.toLowerCase().startsWith('using tool:')
       ) {
-        console.log('🛠️ TOOL USAGE DETECTED IN LOADING MESSAGE:', data.content);
-
         // Extract tool name from content
         const toolRegex = /using tool:?\s*([^.:\n]+?)(?:\.{3}|[.:]|\s*$)/i;
         const match = data.content.match(toolRegex);
@@ -130,9 +125,6 @@ function App(): React.ReactElement {
 
           // If we already have this tool message, don't add a duplicate
           if (existingToolMessage) {
-            console.log(
-              `⚠️ Tool message for ${extractedTool} already exists, not duplicating`
-            );
             return nonLoadingMessages;
           }
 
@@ -166,9 +158,6 @@ function App(): React.ReactElement {
             (msg) => msg.isTool && msg.isPartial
           );
           if (hasActiveToolMessages) {
-            console.log(
-              '⏭️ Skipping "Generating response..." message as tools are active'
-            );
             return; // Skip this generic loading message if tools are active
           }
         }
@@ -187,7 +176,6 @@ function App(): React.ReactElement {
 
           // If we have tool messages, don't add a new loading message
           if (toolMessages.length > 0) {
-            console.log('⏭️ Keeping tool messages, not adding generic loading');
             return prevMessages;
           }
 
@@ -269,7 +257,6 @@ function App(): React.ReactElement {
     });
 
     socket.on('stream_cancelled', () => {
-      console.log('Stream was cancelled');
       setIsLoading(false);
       setStreamInProgress(false);
     });

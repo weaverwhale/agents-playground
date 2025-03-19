@@ -18,32 +18,6 @@ interface MessageProps {
 const ChatMessage: React.FC<MessageProps> = ({ message }) => {
   const { role, content, timestamp, isPartial, isTool, tool } = message;
 
-  // Directly log every partial message for debugging
-  useEffect(() => {
-    if (isPartial) {
-      console.log('🔍 PARTIAL MESSAGE:', content);
-
-      // Check for tool usage
-      if (content && content.toLowerCase().includes('tool')) {
-        console.log('🛠️ TOOL MESSAGE DETECTED:', content);
-
-        // Try to extract tool name with regex - more permissive pattern
-        const toolRegex = /using tool:?\s*([^.:\n]+?)(?:\.{3}|[.:]|\s*$)/i;
-        const matchResult = content.match(toolRegex);
-        console.log('📋 REGEX MATCH RESULT:', matchResult);
-      }
-    }
-
-    // Always log tool messages
-    if (isTool) {
-      console.log('🔧 RENDERING TOOL MESSAGE:', {
-        content,
-        tool,
-        isPartial,
-      });
-    }
-  }, [isPartial, content, isTool, tool]);
-
   // Extract tool name from content if present with more robust detection
   // Make the regex more permissive to catch different tool name formats
   const toolRegex = /using tool:?\s*([^.:\n]+?)(?:\.{3}|[.:]|\s*$)/i;
@@ -57,13 +31,6 @@ const ChatMessage: React.FC<MessageProps> = ({ message }) => {
 
   // Determine if this is a tool message (either by flag or content)
   const isToolMessage = isTool || !!matchResult;
-
-  // Debug logs for tool detection
-  useEffect(() => {
-    if (isToolMessage) {
-      console.log('🧰 TOOL DETECTED:', toolName || 'Unknown tool');
-    }
-  }, [isToolMessage, toolName]);
 
   // Loading dots animation component
   const LoadingDots = () => (
