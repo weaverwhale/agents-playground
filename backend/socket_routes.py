@@ -6,7 +6,7 @@ import socketio
 import uuid
 import traceback
 
-from agent import SimpleRunner, moby_agent
+from agent import Runner, moby_agent
 from utils import format_agent_response, log, get_timestamp
 import state
 
@@ -118,7 +118,7 @@ def register_socketio_handlers(sio: socketio.AsyncServer):
                 
                 # Now, run the agent to get the response
                 log(f"Running agent for user {user_id}", "DEBUG")
-                result = await SimpleRunner.run(
+                result = await Runner.run(
                     moby_agent, 
                     input_list, 
                     context=context,

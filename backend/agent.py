@@ -47,7 +47,7 @@ try:
     )
     
     # Create a simplified Runner class that just passes context to tools
-    class SimpleRunner(Runner):
+    class Runner(Runner):
         @classmethod
         async def run(cls, agent, input, context=None, sid=None, socket=None):
             # Make a copy of the original context or create a new one
@@ -87,7 +87,6 @@ except ImportError as e:
     # Create mock versions
     Agent = MockAgent  
     Runner = MockRunner
-    SimpleRunner = MockRunner
     moby_agent = MockAgent(name="Moby (Mock)")
     
     log("WARNING: Using mock implementations due to import failure!", "WARNING") 
